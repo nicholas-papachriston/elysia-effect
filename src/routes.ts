@@ -14,6 +14,9 @@ import type { EffectHttpMethod } from "./router"
 import { registerElysiaRoute } from "./router"
 import { mergeEffectTelemetry } from "./telemetry"
 
+// SAFETY: explicit type args skip App inference, so App must stay a passthrough.
+type EffectRouteApp = any
+
 type EffectRouteHandler<
   Body,
   Query,
@@ -127,7 +130,7 @@ export const effectRoute = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   method: EffectHttpMethod,
@@ -160,7 +163,7 @@ export const effectGet = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -192,7 +195,7 @@ export const effectHead = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -224,7 +227,7 @@ export const effectOptions = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -257,7 +260,7 @@ export const effectPost = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -290,7 +293,7 @@ export const effectPatch = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -323,7 +326,7 @@ export const effectPut = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -356,7 +359,7 @@ export const effectDelete = <
   ResponseBody = unknown,
   Requirements = never,
   Body = Record<string, never>,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -389,7 +392,7 @@ export const effectAll = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -422,7 +425,7 @@ export const effectConnect = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,
@@ -454,7 +457,7 @@ export const effectTrace = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  App = unknown
+  App = EffectRouteApp
 >(
   app: App,
   path: string,

@@ -93,6 +93,7 @@ export {
   type StreamInterruptionEvent,
   type StreamInterruptionReason,
   type StreamLifecycleOptions,
+  type StreamLike,
   streamToReadableStream,
   streamToReadableStreamEffect
 } from "./stream"

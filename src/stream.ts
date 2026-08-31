@@ -1,5 +1,21 @@
 import { Effect, Exit, Stream } from "effect"
 import { defaultErrorMapper, type HttpErrorResponse } from "./errors"
+import type { EffectLike } from "./runtime"
+
+export interface StreamLike<out A = unknown, out E = unknown, out R = unknown> {
+  readonly pipe: (...args: readonly unknown[]) => unknown
+  readonly _A?: A
+  readonly _E?: E
+  readonly _R?: R
+}
+
+const asStream = <A, E, R>(stream: StreamLike<A, E, R>): Stream.Stream<A, E, R> =>
+  // SAFETY: Consumer Stream values share the Stream protocol across copies.
+  stream as Stream.Stream<A, E, R>
+
+const asEffect = <A, E, R>(program: EffectLike<A, E, R>): Effect.Effect<A, E, R> =>
+  // SAFETY: Consumer Effect values share the Effect protocol across copies.
+  program as Effect.Effect<A, E, R>
 
 export type StreamInterruptionReason = "abort" | "cancel" | "error"
 
@@ -139,30 +155,32 @@ export const encodeServerSentEvent = (event: ServerSentEvent): string => {
 }
 
 export const streamToReadableStream = <A, E>(
-  stream: Stream.Stream<A, E>,
+  stream: StreamLike<A, E, never>,
   options: StreamLifecycleOptions<A> = {}
 ): ReadableStream<A> =>
-  Stream.toReadableStream(withStreamLifecycle(stream, options), { strategy: options.strategy })
+  Stream.toReadableStream(withStreamLifecycle(asStream(stream), options), {
+    strategy: options.strategy
+  })
 
 export const streamToReadableStreamEffect = <A, E, R>(
-  stream: Stream.Stream<A, E, R>,
+  stream: StreamLike<A, E, R>,
   options: StreamLifecycleOptions<A> = {}
-): Effect.Effect<ReadableStream<A>, never, R> =>
-  Stream.toReadableStreamEffect(withStreamLifecycle(stream, options), {
+): EffectLike<ReadableStream<A>, never, R> =>
+  Stream.toReadableStreamEffect(withStreamLifecycle(asStream(stream), options), {
     strategy: options.strategy
   })
 
 export const sseStreamResponse = <A, E, R>(
-  stream: Stream.Stream<A, E, R>,
+  stream: StreamLike<A, E, R>,
   options: SseStreamResponseOptions<A> & {
-    readonly beforeStream?: Effect.Effect<void, E, R>
+    readonly beforeStream?: EffectLike<void, E, R>
   }
-): Effect.Effect<Response, never, R> => {
+): EffectLike<Response, never, R> => {
   const mapError = options.mapError ?? defaultErrorMapper
 
   return Effect.gen(function* () {
     if (options.beforeStream !== undefined) {
-      const gate = yield* Effect.either(options.beforeStream)
+      const gate = yield* Effect.either(asEffect(options.beforeStream))
 
       if (gate._tag === "Left") {
         const mapped = mapError(gate.left)
@@ -182,7 +200,7 @@ export const sseStreamResponse = <A, E, R>(
     }
 
     const body = yield* Stream.toReadableStreamEffect(
-      withStreamLifecycle(stream, lifecycleOptions).pipe(
+      withStreamLifecycle(asStream(stream), lifecycleOptions).pipe(
         Stream.map((chunk) => encoder.encode(encodeServerSentEvent(options.event(chunk)))),
         Stream.catchAll((error) =>
           Stream.make(

@@ -17,6 +17,10 @@ class AuthError extends Data.TaggedError("AuthError")<{
 }> {}
 
 describe("effectPlugin", () => {
+  test("registers under the unscoped community plugin name", () => {
+    expect(effectPlugin().config.name).toBe("elysia-effect")
+  })
+
   test("adds a runEffect decorator for successful programs", async () => {
     const app = new Elysia()
       .use(effectPlugin())

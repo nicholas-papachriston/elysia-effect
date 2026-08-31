@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@papachriston/elysia-effect",
+      "name": "elysia-effect",
       "dependencies": {
         "@elysiajs/cron": "^1.4.0",
         "effect": "^3.18.0",

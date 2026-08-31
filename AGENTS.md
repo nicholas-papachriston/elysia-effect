@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-`@papachriston/elysia-effect` is a private TypeScript library. It runs Effect programs at Elysia HTTP boundaries: routes, schema decode/encode, tagged-error HTTP mapping, SSE streams, queue envelopes, and cron jobs.
+`elysia-effect` is a public TypeScript library. It runs Effect programs at Elysia HTTP boundaries: routes, schema decode/encode, tagged-error HTTP mapping, SSE streams, queue envelopes, and cron jobs. The npm name is unscoped `elysia-effect`, matching community Elysia plugins.
 
 **Tech stack:** TypeScript (strict), Bun runtime and test runner, oxfmt for format, oxlint McCabe CCN 20 as a lint deny. Effect `^3.18.0` and Elysia `^1.4.0` are runtime dependencies and peer dependencies.
 
@@ -13,6 +13,7 @@ Elaris (`apps/api`) and Admin consume this package from the sibling checkout via
 ```
 elysia-effect/
 ├── src/
+│   ├── index.ts        # package root re-export (plugin convention)
 │   ├── context.ts      # RequestContextTag and auth context types
 │   ├── errors.ts       # ValidationError and defaultErrorMapper
 │   ├── handler.ts      # createEffectHandler and auth helpers
@@ -27,6 +28,7 @@ elysia-effect/
 │   └── trace.ts        # x-trace-id / traceparent
 ├── test/               # bun:test coverage per module
 ├── package.json
+├── LICENSE
 ├── tsconfig.json
 ├── .oxfmtrc.json
 ├── .oxlintrc.json
@@ -104,6 +106,8 @@ Read this file before editing code.
 ## Notes
 
 - Keep tagged HTTP mappings structural. Do not import Elaris or Admin domain packages.
-- Prefer package subpath imports. Do not add a root barrel.
+- Keep the package root export. Community Elysia plugins import from the package name.
+- Subpath exports stay supported for focused imports.
 - Trusted auth headers stay `x-elaris-*` for Elaris compatibility.
-- Sibling consumers: Elaris `apps/api` (`file:../../../elysia-effect`) and Admin (`file:../elysia-effect`).
+- Sibling consumers: Elaris `apps/api` (`workspace:*`) and Admin (`file:../elysia-effect`).
+- Do not publish to npm unless USER asks. Local gates stay mandatory.

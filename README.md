@@ -1,16 +1,33 @@
-# @papachriston/elysia-effect
+# elysia-effect
 
-Private helpers for running Effect programs at Elysia HTTP boundaries.
+Elysia plugin for Effect programs, schemas, errors, streams, and cron.
 
-The package lives in `~/dev/elysia-effect`. Elaris and Admin consume it as a sibling `file:` dependency.
+This follows the community plugin name form `elysia-<feature>`. Official plugins use `@elysiajs/*`. This package cannot publish under that org.
 
-## Public surface
+## Installation
 
-Import helpers from package subpaths:
+```bash
+bun add elysia-effect
+```
+
+Peer dependencies: `elysia`, `effect`, and `@elysiajs/cron`.
+
+## Usage
 
 ```ts
-import { effectPlugin } from "@papachriston/elysia-effect/plugin"
-import { effectGet, effectPost } from "@papachriston/elysia-effect/routes"
+import { Elysia } from "elysia"
+import { effectPlugin, effectGet } from "elysia-effect"
+
+const app = new Elysia().use(effectPlugin())
+
+effectGet(app, "/health", () => ({ ok: true }))
+```
+
+Subpath imports remain supported:
+
+```ts
+import { effectPlugin } from "elysia-effect/plugin"
+import { effectGet, effectPost } from "elysia-effect/routes"
 ```
 
 Supported subpaths:
@@ -44,10 +61,8 @@ bun run check
 bun test
 ```
 
-Consumers in this workspace use a sibling path:
+Workspace consumers in this checkout can keep a sibling path:
 
 ```json
-"@papachriston/elysia-effect": "file:../elysia-effect"
+"elysia-effect": "file:../elysia-effect"
 ```
-
-Elaris `apps/api` uses `file:../../../elysia-effect` so Docker can mount the package at `/elysia-effect`.

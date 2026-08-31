@@ -1,16 +1,36 @@
 {
-  "name": "@papachriston/elysia-effect",
+  "name": "elysia-effect",
   "version": "0.1.0",
-  "private": true,
-  "description": "Elysia helpers for Effect programs, schemas, errors, streams, and cron",
-  "license": "UNLICENSED",
+  "description": "Elysia plugin for Effect programs, schemas, errors, streams, and cron",
+  "keywords": [
+    "bun",
+    "effect",
+    "elysia",
+    "plugin",
+    "schema",
+    "sse"
+  ],
+  "homepage": "https://github.com/nicholas-papachriston/elysia-effect#readme",
+  "bugs": {
+    "url": "https://github.com/nicholas-papachriston/elysia-effect/issues"
+  },
+  "license": "MIT",
   "author": "https://github.com/nicholas-papachriston",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/nicholas-papachriston/elysia-effect.git"
+    "url": "git+https://github.com/nicholas-papachriston/elysia-effect.git"
   },
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
   "type": "module",
   "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
     "./context": {
       "types": "./src/context.ts",
       "default": "./src/context.ts"
@@ -56,10 +76,14 @@
       "default": "./src/scheduler.ts"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "check": "bun run lint && bun run typecheck",
     "fix": "oxfmt && oxlint --fix .",
     "lint": "oxfmt && oxlint --fix . && oxfmt --check && oxlint .",
+    "prepublishOnly": "bun run check && bun test",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

@@ -20,7 +20,7 @@ const responseFromMappedError = (error: unknown) => {
 export const effectPlugin = <Requirements = never>(
   options: EffectPluginOptions<Requirements> = {}
 ) =>
-  new Elysia({ name: "@papachriston/elysia-effect" }).decorate(
+  new Elysia({ name: "elysia-effect" }).decorate(
     "runEffect",
     async <A, E>(program: Effect.Effect<A, E, Requirements>) => {
       const runnable = options.layer ? program.pipe(Effect.provide(options.layer)) : program

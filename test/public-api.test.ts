@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { readdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { effectPlugin as packageEffectPlugin } from "@papachriston/elysia-effect/plugin"
-import { effectGet as packageEffectGet } from "@papachriston/elysia-effect/routes"
+import { effectPlugin as rootEffectPlugin } from "elysia-effect"
+import { effectPlugin as packageEffectPlugin } from "elysia-effect/plugin"
+import { effectGet as packageEffectGet } from "elysia-effect/routes"
 import { RequestContextTag } from "../src/context"
 import { defaultErrorMapper } from "../src/errors"
 import { anonymousAuth, authFromHeaders, createEffectHandler } from "../src/handler"
@@ -47,6 +48,7 @@ describe("elysia-effect public API", () => {
     expect(typeof effectPlugin).toBe("function")
     expect(packageEffectGet).toBe(effectGet)
     expect(packageEffectPlugin).toBe(effectPlugin)
+    expect(rootEffectPlugin).toBe(effectPlugin)
     expect(typeof effectPost).toBe("function")
     expect(typeof encode).toBe("function")
     expect(typeof encodeQueueMessageEnvelope).toBe("function")
@@ -106,5 +108,17 @@ describe("elysia-effect public API", () => {
 
     expect(dependencies.filter((dependency) => dependency.startsWith("@elaris/"))).toEqual([])
     expect(offenders).toEqual([])
+  })
+
+  test("uses the unscoped community plugin name", async () => {
+    const packageJson = (await Bun.file(join(packageDirectoryPath, "package.json")).json()) as {
+      readonly name: string
+      readonly private?: boolean
+      readonly license?: string
+    }
+
+    expect(packageJson.name).toBe("elysia-effect")
+    expect(packageJson.private).toBeUndefined()
+    expect(packageJson.license).toBe("MIT")
   })
 })

@@ -20,7 +20,7 @@ export interface RequestContext {
   readonly abortSignal: AbortSignal
 }
 
-export class RequestContextTag extends Context.Tag("@papachriston/elysia-effect/RequestContext")<
+export class RequestContextTag extends Context.Tag("elysia-effect/RequestContext")<
   RequestContextTag,
   RequestContext
 >() {}

@@ -1,0 +1,14 @@
+{
+  "useTabs": false,
+  "tabWidth": 2,
+  "printWidth": 100,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "trailingComma": "none",
+  "semi": false,
+  "arrowParens": "always",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "ignorePatterns": ["node_modules", "dist", "*.tsbuildinfo", "bun.lock"]
+}

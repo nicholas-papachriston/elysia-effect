@@ -1,5 +1,33 @@
 import { Cause, Effect, Exit, Layer, ManagedRuntime } from "effect"
 
+export interface EffectLike<out A = unknown, out E = unknown, out R = unknown> {
+  readonly pipe: (...args: readonly unknown[]) => unknown
+  readonly _A?: A
+  readonly _E?: E
+  readonly _R?: R
+}
+
+const EFFECT_SYMBOL = "Symbol(effect/Effect)"
+
+export const isEffectValue = (value: unknown): value is EffectLike => {
+  if (typeof value !== "object" || value === null) {
+    return false
+  }
+
+  const record = value as { readonly pipe?: unknown; readonly _op?: unknown }
+  if (typeof record.pipe !== "function" || typeof record._op !== "string") {
+    return false
+  }
+
+  return Object.getOwnPropertySymbols(value).some((symbol) => String(symbol) === EFFECT_SYMBOL)
+}
+
+const asRunnable = <A, E, Requirements>(
+  program: EffectLike<A, E, Requirements>
+): Effect.Effect<A, E, Requirements> =>
+  // SAFETY: Consumer Effect values share the Effect protocol across copies.
+  program as Effect.Effect<A, E, Requirements>
+
 export interface EffectRunner<Requirements = never> {
   readonly runPromise: <A, E>(program: Effect.Effect<A, E, Requirements>) => Promise<A>
   readonly runPromiseExit: <A, E>(
@@ -82,7 +110,7 @@ export const observeExit = <A, E>(exit: Exit.Exit<A, E>): ObservedExit<A, E> => 
 
 export const runObserved = async <A, E, Requirements>(
   runner: EffectRunner<Requirements>,
-  program: Effect.Effect<A, E, Requirements>,
+  program: EffectLike<A, E, Requirements>,
   signal: AbortSignal
 ): Promise<ObservedExit<A, E>> =>
-  observeExit(await runner.runPromiseExit(withAbort(program, signal)))
+  observeExit(await runner.runPromiseExit(withAbort(asRunnable(program), signal)))

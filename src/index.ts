@@ -56,7 +56,9 @@ export {
 } from "./routes"
 export {
   createEffectRunner,
+  type EffectLike,
   type EffectRunner,
+  isEffectValue,
   observeExit,
   type ObservedExit,
   runObserved,

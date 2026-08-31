@@ -10,7 +10,14 @@ import {
   makeRequestContext
 } from "./handler"
 import { getRequestId } from "./request"
-import { createEffectRunner, type EffectRunner, type ObservedExit, runObserved } from "./runtime"
+import {
+  createEffectRunner,
+  type EffectLike,
+  type EffectRunner,
+  isEffectValue,
+  type ObservedExit,
+  runObserved
+} from "./runtime"
 import { readTraceId, TRACE_ID_HEADER } from "./trace"
 
 export interface EffectPluginOptions {
@@ -59,7 +66,7 @@ const valueFromObserved = <A>(
 
 const runDecoratorProgram = async <A, E, Requirements>(
   runner: EffectRunner<Requirements>,
-  program: Effect.Effect<A, E, Requirements>,
+  program: EffectLike<A, E, Requirements>,
   mapError: (error: unknown) => HttpErrorResponse
 ) => {
   const observed = await runObserved(runner, program, new AbortController().signal)
@@ -83,12 +90,12 @@ export const effectPlugin = <Requirements = never>(options: EffectPluginOptions 
 
   return new Elysia({ name: "elysia-effect" })
     .decorate("elysiaEffect", bindings)
-    .decorate("runEffect", async <A, E>(program: Effect.Effect<A, E, Requirements>) =>
+    .decorate("runEffect", async <A, E>(program: EffectLike<A, E, Requirements>) =>
       runDecoratorProgram(runner, program, mapError)
     )
     .onAfterHandle(async (context) => {
       const response = (context as { readonly response?: unknown }).response
-      if (!Effect.isEffect(response)) {
+      if (!isEffectValue(response)) {
         return response
       }
 

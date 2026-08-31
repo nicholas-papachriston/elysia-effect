@@ -8,7 +8,7 @@ import {
   headersToObject,
   readClientMeta
 } from "./request"
-import { createEffectRunner, type EffectRunner, runObserved } from "./runtime"
+import { createEffectRunner, type EffectLike, type EffectRunner, runObserved } from "./runtime"
 import { decodeUnknown, encode, type SchemaLike } from "./schema"
 import { readTraceId, TRACE_ID_HEADER } from "./trace"
 
@@ -249,7 +249,7 @@ export const createEffectHandler =
     >,
     handler: (
       context: EffectHandlerContext<Body, Query, Params, RequestHeaders, RequestCookies>
-    ) => Effect.Effect<ResponseBody, unknown, Requirements | RequestContextTag>
+    ) => EffectLike<ResponseBody, unknown, Requirements | RequestContextTag>
   ) =>
   async (context: ElysiaLikeContext): Promise<unknown> => {
     const plugin = context.elysiaEffect
@@ -321,9 +321,13 @@ export const createEffectHandler =
         ...(rawBody === undefined ? {} : { rawBody })
       }
 
-      const result = yield* handler(handlerContext).pipe(
-        Effect.provideService(RequestContextTag, requestContext)
-      )
+      const result = yield* (
+        handler(handlerContext) as Effect.Effect<
+          ResponseBody,
+          unknown,
+          Requirements | RequestContextTag
+        >
+      ).pipe(Effect.provideService(RequestContextTag, requestContext))
 
       return options.schemas?.response
         ? yield* encode(options.schemas.response as SchemaLike<ResponseBody>, result, "response")

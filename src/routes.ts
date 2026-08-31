@@ -1,4 +1,4 @@
-import type { Effect } from "effect"
+import type { EffectLike } from "./runtime"
 import {
   createEffectHandler,
   type EffectHandlerContext,
@@ -24,7 +24,7 @@ type EffectRouteHandler<
   Requirements
 > = (
   context: EffectHandlerContext<Body, Query, Params, RequestHeaders, RequestCookies>
-) => Effect.Effect<ResponseBody, unknown, Requirements>
+) => EffectLike<ResponseBody, unknown, Requirements>
 
 type ElysiaRouteOptions = EffectRouteOpenApiOptions | Record<string, unknown>
 

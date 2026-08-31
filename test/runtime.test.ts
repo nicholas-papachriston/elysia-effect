@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { Context, Effect, Exit, Layer } from "effect"
-import { createEffectRunner, observeExit, runObserved, withAbort } from "../src/runtime"
+import {
+  createEffectRunner,
+  isEffectValue,
+  observeExit,
+  runObserved,
+  withAbort
+} from "../src/runtime"
 
 class CounterTag extends Context.Tag("RuntimeCounter")<CounterTag, { readonly n: number }>() {}
 
@@ -36,5 +42,11 @@ describe("effect runtime adapter", () => {
     const observed = await running
 
     expect(observed.kind).toBe("interrupt")
+  })
+
+  test("detects Effect values without a unique TypeId", () => {
+    expect(isEffectValue(Effect.succeed(1))).toBe(true)
+    expect(isEffectValue({ ok: true })).toBe(false)
+    expect(isEffectValue(null)).toBe(false)
   })
 })

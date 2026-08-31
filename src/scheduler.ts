@@ -1,6 +1,10 @@
 import { type CronConfig, cron } from "@elysiajs/cron"
 import { Effect } from "effect"
-import { createEffectRunner } from "./runtime"
+import { createEffectRunner, type EffectLike } from "./runtime"
+
+const asEffect = <A, E, R>(program: EffectLike<A, E, R>): Effect.Effect<A, E, R> =>
+  // SAFETY: Consumer Effect values share the Effect protocol across copies.
+  program as Effect.Effect<A, E, R>
 
 export interface EffectCronJobContext<Name extends string = string> {
   readonly name: Name
@@ -8,13 +12,13 @@ export interface EffectCronJobContext<Name extends string = string> {
 }
 
 export interface EffectCronLockLease<Requirements = never> {
-  readonly release: () => Effect.Effect<void, never, Requirements>
+  readonly release: () => EffectLike<void, never, Requirements>
 }
 
 export interface EffectCronLock<Name extends string = string, E = unknown, Requirements = never> {
   readonly acquire: (
     context: EffectCronJobContext<Name>
-  ) => Effect.Effect<EffectCronLockLease<Requirements> | null, E, Requirements>
+  ) => EffectLike<EffectCronLockLease<Requirements> | null, E, Requirements>
 }
 
 export interface EffectCronSuccessEvent<Name extends string = string> {
@@ -44,7 +48,7 @@ export type EffectCronJobOutcome<Name extends string = string> =
 
 export interface EffectCronRunnerOptions<Name extends string, E, Requirements> {
   readonly name: Name
-  readonly run: (context: EffectCronJobContext<Name>) => Effect.Effect<void, E, Requirements>
+  readonly run: (context: EffectCronJobContext<Name>) => EffectLike<void, E, Requirements>
   readonly layer?: object
   readonly lock?: EffectCronLock<Name, E, Requirements>
   readonly mapError?: (error: E) => unknown
@@ -65,7 +69,7 @@ const makeCronProgram = <Name extends string, E, Requirements>(
   context: EffectCronJobContext<Name>,
   options: EffectCronRunnerOptions<Name, E, Requirements>
 ): Effect.Effect<"completed" | "skipped", E, Requirements> => {
-  const runJob = options.run(context).pipe(Effect.as("completed" as const))
+  const runJob = asEffect(options.run(context)).pipe(Effect.as("completed" as const))
 
   if (options.lock === undefined) {
     return runJob
@@ -73,12 +77,12 @@ const makeCronProgram = <Name extends string, E, Requirements>(
   const lock = options.lock
 
   return Effect.gen(function* () {
-    const lease = yield* lock.acquire(context)
+    const lease = yield* asEffect(lock.acquire(context))
     if (lease === null || lease === undefined) {
       return "skipped" as const
     }
 
-    return yield* runJob.pipe(Effect.ensuring(lease.release()))
+    return yield* runJob.pipe(Effect.ensuring(asEffect(lease.release())))
   })
 }
 

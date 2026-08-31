@@ -88,7 +88,7 @@ export const effectPlugin = <Requirements = never>(options: EffectPluginOptions 
     ...(options.telemetry ? { telemetry: options.telemetry } : {})
   }
 
-  return new Elysia({ name: "elysia-effect" })
+  const plugin = new Elysia({ name: "elysia-effect" })
     .decorate("elysiaEffect", bindings)
     .decorate("runEffect", async <A, E>(program: EffectLike<A, E, Requirements>) =>
       runDecoratorProgram(runner, program, mapError)
@@ -130,4 +130,7 @@ export const effectPlugin = <Requirements = never>(options: EffectPluginOptions 
       })
     })
     .as("scoped")
+
+  // SAFETY: keep the consumer Elysia type when nested copies differ.
+  return plugin as any
 }

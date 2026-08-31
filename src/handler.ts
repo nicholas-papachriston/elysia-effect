@@ -12,20 +12,13 @@ import { createEffectRunner, type EffectRunner, runObserved } from "./runtime"
 import { decodeUnknown, encode, type SchemaLike } from "./schema"
 import { readTraceId, TRACE_ID_HEADER } from "./trace"
 
-export interface EffectRouteSchemas<
-  Body = unknown,
-  Query = unknown,
-  Params = unknown,
-  Headers = unknown,
-  Cookies = unknown,
-  Response = unknown
-> {
-  readonly body?: SchemaLike<Body>
-  readonly query?: SchemaLike<Query>
-  readonly params?: SchemaLike<Params>
-  readonly headers?: SchemaLike<Headers>
-  readonly cookies?: SchemaLike<Cookies>
-  readonly response?: SchemaLike<Response>
+export interface EffectRouteSchemas {
+  readonly body?: SchemaLike
+  readonly query?: SchemaLike
+  readonly params?: SchemaLike
+  readonly headers?: SchemaLike
+  readonly cookies?: SchemaLike
+  readonly response?: SchemaLike
 }
 
 export interface EffectHandlerContext<Body, Query, Params, Headers, Cookies> {
@@ -75,22 +68,15 @@ export interface EffectPluginBindings<Requirements = never> {
 }
 
 export interface EffectHandlerOptions<
-  Body = Record<string, never>,
-  Query = Record<string, never>,
-  Params = Record<string, never>,
-  RequestHeaders = Record<string, string>,
-  RequestCookies = Record<string, string>,
-  ResponseBody = unknown,
+  _Body = Record<string, never>,
+  _Query = Record<string, never>,
+  _Params = Record<string, never>,
+  _RequestHeaders = Record<string, string>,
+  _RequestCookies = Record<string, string>,
+  _ResponseBody = unknown,
   _Requirements = never
 > {
-  readonly schemas?: EffectRouteSchemas<
-    Body,
-    Query,
-    Params,
-    RequestHeaders,
-    RequestCookies,
-    ResponseBody
-  >
+  readonly schemas?: EffectRouteSchemas
   readonly layer?: object
   readonly mapError?: (error: unknown) => HttpErrorResponse
   readonly auth?: (context: ElysiaLikeContext) => AuthContext | Promise<AuthContext>
@@ -146,12 +132,14 @@ export const trustedAuthFromHeaders = (context: ElysiaLikeContext): AuthContext 
 }
 
 const decodeOptional = <A>(
-  schema: SchemaLike<A> | undefined,
+  schema: SchemaLike | undefined,
   value: unknown,
   label: string,
   fallback: A
 ): Effect.Effect<A, ValidationError> =>
-  schema === undefined ? Effect.succeed(fallback) : decodeUnknown(schema, value, label)
+  schema === undefined
+    ? Effect.succeed(fallback)
+    : decodeUnknown(schema as SchemaLike<A>, value, label)
 
 const createStartEvent = (
   context: ElysiaLikeContext,
@@ -338,7 +326,7 @@ export const createEffectHandler =
       )
 
       return options.schemas?.response
-        ? yield* encode(options.schemas.response, result, "response")
+        ? yield* encode(options.schemas.response as SchemaLike<ResponseBody>, result, "response")
         : result
     })
 

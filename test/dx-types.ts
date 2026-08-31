@@ -8,8 +8,9 @@ const Item = Schema.Struct({
 
 const expectString = (value: string): string => value
 
-export const inferredHandler = createEffectHandler({ schemas: { body: Item } }, ({ body }) =>
-  Effect.succeed({ name: expectString(body.name) })
+export const inferredHandler = createEffectHandler<{ readonly name: string }>(
+  { schemas: { body: Item } },
+  ({ body }) => Effect.succeed({ name: expectString(body.name) })
 )
 
 export const nativeValidator = toElysiaValidator({

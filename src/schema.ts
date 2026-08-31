@@ -6,17 +6,19 @@ import { ValidationError } from "./errors"
  * consumer hoists a different Effect copy than the one this package compiled
  * against.
  */
-export interface SchemaLike<A = unknown, I = A> {
+export interface SchemaLike<out A = unknown, out I = unknown> {
   readonly ast: unknown
-  readonly Type: A
-  readonly Encoded: I
+  readonly Type?: A
+  readonly Encoded?: I
 }
 
 export type AnySchema = SchemaLike<unknown, unknown>
 
-export type InferSchemaType<S> = S extends { readonly Type: infer A } ? A : unknown
+export type InferSchemaType<S> = S extends { readonly Type?: infer A } ? NonNullable<A> : unknown
 
-export type InferSchemaEncoded<S> = S extends { readonly Encoded: infer I } ? I : unknown
+export type InferSchemaEncoded<S> = S extends { readonly Encoded?: infer I }
+  ? NonNullable<I>
+  : unknown
 
 const asEffectSchema = <A, I>(schema: SchemaLike<A, I>): Schema.Schema<A, I, never> =>
   // SAFETY: SchemaLike is the Effect Schema surface without a unique TypeId.

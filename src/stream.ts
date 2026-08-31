@@ -165,7 +165,8 @@ export const streamToReadableStream = <A, E>(
 export const streamToReadableStreamEffect = <A, E, R>(
   stream: StreamLike<A, E, R>,
   options: StreamLifecycleOptions<A> = {}
-): EffectLike<ReadableStream<A>, never, R> =>
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any =>
   Stream.toReadableStreamEffect(withStreamLifecycle(asStream(stream), options), {
     strategy: options.strategy
   })
@@ -175,7 +176,8 @@ export const sseStreamResponse = <A, E, R>(
   options: SseStreamResponseOptions<A> & {
     readonly beforeStream?: EffectLike<void, E, R>
   }
-): EffectLike<Response, never, R> => {
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any => {
   const mapError = options.mapError ?? defaultErrorMapper
 
   return Effect.gen(function* () {

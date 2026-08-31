@@ -1,5 +1,4 @@
 import { Data, Effect, ParseResult, Schema } from "effect"
-import type { EffectLike } from "./runtime"
 import type { SchemaLike } from "./schema"
 
 export const readQueueCorrelationIds = (
@@ -109,7 +108,8 @@ const makeEncodeError = (
 export const decodeQueueMessageEnvelope = <Kind extends string, Payload, EncodedPayload>(
   options: QueuePayloadSchema<Kind, Payload, EncodedPayload>,
   value: unknown
-): EffectLike<QueueMessageEnvelope<Kind, Payload>, QueuePayloadDecodeError> => {
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any => {
   const schema = makeQueueMessageEnvelopeSchema(options)
 
   return Schema.decodeUnknown(schema)(value).pipe(
@@ -121,7 +121,8 @@ export const decodeQueueMessageEnvelope = <Kind extends string, Payload, Encoded
 export const encodeQueueMessageEnvelope = <Kind extends string, Payload, EncodedPayload>(
   options: QueuePayloadSchema<Kind, Payload, EncodedPayload>,
   envelope: QueueMessageEnvelope<Kind, Payload>
-): EffectLike<QueueMessageEnvelope<Kind, EncodedPayload>, QueuePayloadEncodeError> => {
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any => {
   const schema = makeQueueMessageEnvelopeSchema(options)
 
   return Schema.encode(schema)(envelope).pipe(

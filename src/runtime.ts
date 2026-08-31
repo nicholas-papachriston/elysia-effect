@@ -2,7 +2,6 @@ import { Cause, Effect, Exit, Layer, ManagedRuntime } from "effect"
 
 export interface EffectLike<out A = unknown, out E = unknown, out R = unknown> {
   readonly pipe: (...args: readonly unknown[]) => unknown
-  readonly [Symbol.iterator]: () => Iterator<unknown>
   readonly _A?: A
   readonly _E?: E
   readonly _R?: R

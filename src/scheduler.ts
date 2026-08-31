@@ -167,7 +167,8 @@ export const runEffectCronJob = async <Name extends string, E, Requirements>(
 
 export const effectCron = <Name extends string, E = unknown, Requirements = never>(
   options: EffectCronConfig<Name, E, Requirements>
-): ReturnType<typeof cron<Name>> => {
+  // SAFETY: keep the consumer Elysia type when nested copies differ.
+): any => {
   const { run, layer, lock, mapError, onSuccess, onSkip, onFailure, ...cronOptions } = options
   const runnerOptions: EffectCronRunnerOptions<Name, E, Requirements> = {
     name: options.name,

@@ -1,16 +1,17 @@
 import type { Effect } from "effect"
-import type { AnyElysia } from "elysia"
 import {
   createEffectHandler,
   type EffectHandlerContext,
   type EffectHandlerOptions,
-  type ElysiaLikeContext
+  type EffectTelemetryHooks
 } from "./handler"
 import {
   type EffectOpenApiDetail,
   type EffectRouteOpenApiOptions,
   toOpenApiJsonSchema
 } from "./openapi"
+import type { EffectHttpMethod } from "./router"
+import { registerElysiaRoute } from "./router"
 import { mergeEffectTelemetry } from "./telemetry"
 
 type EffectRouteHandler<
@@ -27,39 +28,7 @@ type EffectRouteHandler<
 
 type ElysiaRouteOptions = EffectRouteOpenApiOptions | Record<string, unknown>
 
-interface SimpleElysiaRouter {
-  readonly get: (
-    path: string,
-    handler: (context: ElysiaLikeContext) => Promise<unknown>,
-    options?: ElysiaRouteOptions
-  ) => AnyElysia
-  readonly post: (
-    path: string,
-    handler: (context: ElysiaLikeContext) => Promise<unknown>,
-    options?: ElysiaRouteOptions
-  ) => AnyElysia
-  readonly patch: (
-    path: string,
-    handler: (context: ElysiaLikeContext) => Promise<unknown>,
-    options?: ElysiaRouteOptions
-  ) => AnyElysia
-  readonly put: (
-    path: string,
-    handler: (context: ElysiaLikeContext) => Promise<unknown>,
-    options?: ElysiaRouteOptions
-  ) => AnyElysia
-  readonly delete: (
-    path: string,
-    handler: (context: ElysiaLikeContext) => Promise<unknown>,
-    options?: ElysiaRouteOptions
-  ) => AnyElysia
-}
-
-const asRouter = (app: AnyElysia): SimpleElysiaRouter => app as unknown as SimpleElysiaRouter
-
-const withMergedTelemetry = <
-  Options extends EffectHandlerOptions<unknown, unknown, unknown, unknown, unknown, unknown, never>
->(
+const withMergedTelemetry = <Options extends { readonly telemetry?: EffectTelemetryHooks }>(
   options: Options
 ): Options => ({
   ...options,
@@ -67,10 +36,12 @@ const withMergedTelemetry = <
 })
 
 const routeOptionsFor = (
-  options: Pick<
-    EffectHandlerOptions<unknown, unknown, unknown, unknown, unknown, unknown, never>,
-    "schemas"
-  >,
+  options: {
+    readonly rawBody?: boolean
+    readonly schemas?: {
+      readonly response?: Parameters<typeof toOpenApiJsonSchema>[0]
+    }
+  },
   routeOptions?: ElysiaRouteOptions
 ): EffectRouteOpenApiOptions => {
   const openApiOptions = routeOptions as EffectRouteOpenApiOptions | undefined
@@ -92,6 +63,7 @@ const routeOptionsFor = (
     : {}
 
   return {
+    ...(options.rawBody ? { parse: "none" } : {}),
     ...openApiOptions,
     ...(detail || responseSchema
       ? {
@@ -104,15 +76,93 @@ const routeOptionsFor = (
   }
 }
 
+const attachEffectRoute = <
+  App,
+  Body,
+  Query,
+  Params,
+  RequestHeaders,
+  RequestCookies,
+  ResponseBody,
+  Requirements
+>(
+  app: App,
+  method: EffectHttpMethod,
+  path: string,
+  options: EffectHandlerOptions<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App =>
+  registerElysiaRoute(
+    app,
+    method,
+    path,
+    createEffectHandler(withMergedTelemetry(options), handler) as (
+      context: unknown
+    ) => Promise<unknown>,
+    routeOptionsFor(options, routeOptions)
+  )
+
+export const effectRoute = <
+  Body = Record<string, never>,
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  method: EffectHttpMethod,
+  path: string,
+  options: EffectHandlerOptions<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, method, path, options, handler, routeOptions)
+
 export const effectGet = <
   Query = Record<string, never>,
   Params = Record<string, never>,
   RequestHeaders = Record<string, string>,
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
-  Requirements = never
+  Requirements = never,
+  App = unknown
 >(
-  app: AnyElysia,
+  app: App,
   path: string,
   options: EffectHandlerOptions<
     Record<string, never>,
@@ -133,12 +183,71 @@ export const effectGet = <
     Requirements
   >,
   routeOptions?: ElysiaRouteOptions
-): AnyElysia =>
-  asRouter(app).get(
-    path,
-    createEffectHandler(withMergedTelemetry(options), handler),
-    routeOptionsFor(options, routeOptions)
-  )
+): App => attachEffectRoute(app, "get", path, options, handler, routeOptions)
+
+export const effectHead = <
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  path: string,
+  options: EffectHandlerOptions<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, "head", path, options, handler, routeOptions)
+
+export const effectOptions = <
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  path: string,
+  options: EffectHandlerOptions<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, "options", path, options, handler, routeOptions)
 
 export const effectPost = <
   Body = Record<string, never>,
@@ -147,9 +256,10 @@ export const effectPost = <
   RequestHeaders = Record<string, string>,
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
-  Requirements = never
+  Requirements = never,
+  App = unknown
 >(
-  app: AnyElysia,
+  app: App,
   path: string,
   options: EffectHandlerOptions<
     Body,
@@ -170,12 +280,7 @@ export const effectPost = <
     Requirements
   >,
   routeOptions?: ElysiaRouteOptions
-): AnyElysia =>
-  asRouter(app).post(
-    path,
-    createEffectHandler(withMergedTelemetry(options), handler),
-    routeOptionsFor(options, routeOptions)
-  )
+): App => attachEffectRoute(app, "post", path, options, handler, routeOptions)
 
 export const effectPatch = <
   Body = Record<string, never>,
@@ -184,9 +289,10 @@ export const effectPatch = <
   RequestHeaders = Record<string, string>,
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
-  Requirements = never
+  Requirements = never,
+  App = unknown
 >(
-  app: AnyElysia,
+  app: App,
   path: string,
   options: EffectHandlerOptions<
     Body,
@@ -207,12 +313,7 @@ export const effectPatch = <
     Requirements
   >,
   routeOptions?: ElysiaRouteOptions
-): AnyElysia =>
-  asRouter(app).patch(
-    path,
-    createEffectHandler(withMergedTelemetry(options), handler),
-    routeOptionsFor(options, routeOptions)
-  )
+): App => attachEffectRoute(app, "patch", path, options, handler, routeOptions)
 
 export const effectPut = <
   Body = Record<string, never>,
@@ -221,9 +322,10 @@ export const effectPut = <
   RequestHeaders = Record<string, string>,
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
-  Requirements = never
+  Requirements = never,
+  App = unknown
 >(
-  app: AnyElysia,
+  app: App,
   path: string,
   options: EffectHandlerOptions<
     Body,
@@ -244,12 +346,7 @@ export const effectPut = <
     Requirements
   >,
   routeOptions?: ElysiaRouteOptions
-): AnyElysia =>
-  asRouter(app).put(
-    path,
-    createEffectHandler(withMergedTelemetry(options), handler),
-    routeOptionsFor(options, routeOptions)
-  )
+): App => attachEffectRoute(app, "put", path, options, handler, routeOptions)
 
 export const effectDelete = <
   Query = Record<string, never>,
@@ -258,9 +355,10 @@ export const effectDelete = <
   RequestCookies = Record<string, string>,
   ResponseBody = unknown,
   Requirements = never,
-  Body = Record<string, never>
+  Body = Record<string, never>,
+  App = unknown
 >(
-  app: AnyElysia,
+  app: App,
   path: string,
   options: EffectHandlerOptions<
     Body,
@@ -281,9 +379,102 @@ export const effectDelete = <
     Requirements
   >,
   routeOptions?: ElysiaRouteOptions
-): AnyElysia =>
-  asRouter(app).delete(
-    path,
-    createEffectHandler(withMergedTelemetry(options), handler),
-    routeOptionsFor(options, routeOptions)
-  )
+): App => attachEffectRoute(app, "delete", path, options, handler, routeOptions)
+
+export const effectAll = <
+  Body = Record<string, never>,
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  path: string,
+  options: EffectHandlerOptions<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, "all", path, options, handler, routeOptions)
+
+export const effectConnect = <
+  Body = Record<string, never>,
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  path: string,
+  options: EffectHandlerOptions<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Body,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, "connect", path, options, handler, routeOptions)
+
+export const effectTrace = <
+  Query = Record<string, never>,
+  Params = Record<string, never>,
+  RequestHeaders = Record<string, string>,
+  RequestCookies = Record<string, string>,
+  ResponseBody = unknown,
+  Requirements = never,
+  App = unknown
+>(
+  app: App,
+  path: string,
+  options: EffectHandlerOptions<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  handler: EffectRouteHandler<
+    Record<string, never>,
+    Query,
+    Params,
+    RequestHeaders,
+    RequestCookies,
+    ResponseBody,
+    Requirements
+  >,
+  routeOptions?: ElysiaRouteOptions
+): App => attachEffectRoute(app, "trace", path, options, handler, routeOptions)

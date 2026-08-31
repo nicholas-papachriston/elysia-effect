@@ -1,5 +1,6 @@
 import { type CronConfig, cron } from "@elysiajs/cron"
-import { Effect, type Layer } from "effect"
+import { Effect } from "effect"
+import { createEffectRunner } from "./runtime"
 
 export interface EffectCronJobContext<Name extends string = string> {
   readonly name: Name
@@ -44,7 +45,7 @@ export type EffectCronJobOutcome<Name extends string = string> =
 export interface EffectCronRunnerOptions<Name extends string, E, Requirements> {
   readonly name: Name
   readonly run: (context: EffectCronJobContext<Name>) => Effect.Effect<void, E, Requirements>
-  readonly layer?: Layer.Layer<Requirements>
+  readonly layer?: object
   readonly lock?: EffectCronLock<Name, E, Requirements>
   readonly mapError?: (error: E) => unknown
   readonly onSuccess?: (event: EffectCronSuccessEvent<Name>) => void | Promise<void>
@@ -94,12 +95,11 @@ export const runEffectCronJob = async <Name extends string, E, Requirements>(
     startedAt: new Date()
   }
   const program = makeCronProgram(context, options)
-  const runnable = (
-    options.layer ? program.pipe(Effect.provide(options.layer)) : program
-  ) as Effect.Effect<"completed" | "skipped", E, never>
+  const runner = createEffectRunner<Requirements>(options.layer)
+  const runnable = program as Effect.Effect<"completed" | "skipped", E, Requirements>
 
   try {
-    const result = await Effect.runPromise(Effect.either(runnable))
+    const result = await runner.runPromise(Effect.either(runnable))
     const durationMs = performance.now() - startedAt
 
     if (result._tag === "Right") {

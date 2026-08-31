@@ -4,7 +4,17 @@ import { Elysia } from "elysia"
 import { RequestContextTag } from "../src/context"
 import { defaultErrorMapper } from "../src/errors"
 import { openApiDetail, openApiRouteOptions } from "../src/openapi"
-import { effectDelete, effectGet, effectPatch, effectPost } from "../src/routes"
+import {
+  effectAll,
+  effectDelete,
+  effectGet,
+  effectHead,
+  effectOptions,
+  effectPatch,
+  effectPost,
+  effectPut,
+  effectRoute
+} from "../src/routes"
 
 const Params = Schema.Struct({
   id: Schema.String
@@ -152,6 +162,84 @@ describe("effect route helpers", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ value: "character-1" })
+  })
+
+  test("registers an Effect HEAD route", async () => {
+    const app = effectHead(
+      new Elysia(),
+      "/characters/:id",
+      {
+        schemas: {
+          params: Params
+        }
+      },
+      () => Effect.succeed(undefined)
+    )
+
+    const response = await app.handle(
+      new Request("http://localhost/characters/character-1", { method: "HEAD" })
+    )
+
+    expect(response.status).toBe(200)
+  })
+
+  test("registers an Effect PUT route", async () => {
+    const app = effectPut(
+      new Elysia(),
+      "/characters/:id",
+      {
+        schemas: {
+          params: Params,
+          body: Body,
+          response: ResponseBody
+        }
+      },
+      ({ params, body }) => Effect.succeed({ value: `${params.id}:${body.name}` })
+    )
+
+    const response = await app.handle(
+      makeJsonRequest("http://localhost/characters/character-1", "PUT", { name: "Replaced" })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ value: "character-1:Replaced" })
+  })
+
+  test("registers an Effect OPTIONS route", async () => {
+    const app = effectOptions(new Elysia(), "/characters", {}, () =>
+      Effect.succeed({ allow: "GET,POST" })
+    )
+
+    const response = await app.handle(
+      new Request("http://localhost/characters", { method: "OPTIONS" })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ allow: "GET,POST" })
+  })
+
+  test("registers an Effect ALL route", async () => {
+    const app = effectAll(new Elysia(), "/any", {}, () => Effect.succeed({ ok: true }))
+
+    const response = await app.handle(new Request("http://localhost/any", { method: "POST" }))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+  })
+
+  test("registers a route through effectRoute", async () => {
+    const app = effectRoute(new Elysia(), "post", "/routed", {}, () =>
+      Effect.succeed({ routed: true })
+    )
+
+    const response = await app.handle(
+      new Request("http://localhost/routed", {
+        method: "POST"
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ routed: true })
   })
 
   test("provides request context to Effect handlers", async () => {

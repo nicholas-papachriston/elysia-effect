@@ -17,6 +17,7 @@ export {
   createEffectHandler,
   type EffectHandlerContext,
   type EffectHandlerOptions,
+  type EffectPluginBindings,
   type EffectRequestErrorEvent,
   type EffectRequestStartEvent,
   type EffectRequestSuccessEvent,
@@ -39,6 +40,28 @@ export {
   openApiSensitiveAdminRoute,
   toOpenApiJsonSchema
 } from "./openapi"
+export { type EffectHttpMethod, registerElysiaRoute } from "./router"
+export {
+  effectAll,
+  effectConnect,
+  effectDelete,
+  effectGet,
+  effectHead,
+  effectOptions,
+  effectPatch,
+  effectPost,
+  effectPut,
+  effectRoute,
+  effectTrace
+} from "./routes"
+export {
+  createEffectRunner,
+  type EffectRunner,
+  observeExit,
+  type ObservedExit,
+  runObserved,
+  withAbort
+} from "./runtime"
 export { type EffectPluginOptions, effectPlugin } from "./plugin"
 export {
   decodeQueueMessageEnvelope,
@@ -50,21 +73,16 @@ export {
   QueuePayloadEncodeError,
   readQueueCorrelationIds
 } from "./queue"
-export { effectDelete, effectGet, effectPatch, effectPost, effectPut } from "./routes"
 export {
-  type EffectCronConfig,
-  type EffectCronFailureEvent,
-  type EffectCronJobContext,
-  type EffectCronJobOutcome,
-  type EffectCronLock,
-  type EffectCronLockLease,
-  type EffectCronRunnerOptions,
-  type EffectCronSkipEvent,
-  type EffectCronSuccessEvent,
-  effectCron,
-  runEffectCronJob
-} from "./scheduler"
-export { type AnySchema, decodeUnknown, encode } from "./schema"
+  type AnySchema,
+  decodeUnknown,
+  encode,
+  type InferSchemaEncoded,
+  type InferSchemaType,
+  type SchemaLike,
+  toElysiaValidator,
+  toStandardSchema
+} from "./schema"
 export {
   encodeServerSentEvent,
   type ServerSentEvent,

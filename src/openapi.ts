@@ -1,4 +1,5 @@
 import { JSONSchema, type Schema } from "effect"
+import type { SchemaLike } from "./schema"
 
 export type EffectOpenApiJsonSchema = JSONSchema.JsonSchema7Root
 
@@ -63,12 +64,12 @@ export const openApiSensitiveAdminRoute = (
   })
 
 export interface EffectOpenApiSchemaOptions {
-  readonly body?: Schema.Schema.Any
-  readonly query?: Schema.Schema.Any
-  readonly params?: Schema.Schema.Any
-  readonly headers?: Schema.Schema.Any
-  readonly cookies?: Schema.Schema.Any
-  readonly response?: Schema.Schema.Any
+  readonly body?: SchemaLike
+  readonly query?: SchemaLike
+  readonly params?: SchemaLike
+  readonly headers?: SchemaLike
+  readonly cookies?: SchemaLike
+  readonly response?: SchemaLike
 }
 
 const stripJsonSchemaDialect = (schema: EffectOpenApiJsonSchema): EffectOpenApiJsonSchema => {
@@ -88,8 +89,14 @@ const normalizeOpenApiDetail = (detail: EffectOpenApiDetail): EffectOpenApiDetai
   }
 }
 
-export const toOpenApiJsonSchema = (schema: Schema.Schema.Any): EffectOpenApiJsonSchema =>
-  stripJsonSchemaDialect(JSONSchema.make(schema, { target: "openApi3.1" }))
+export const toOpenApiJsonSchema = (schema: SchemaLike): EffectOpenApiJsonSchema =>
+  stripJsonSchemaDialect(
+    JSONSchema.make(
+      // SAFETY: SchemaLike is the Effect Schema surface without a unique TypeId.
+      schema as Schema.Schema.Any,
+      { target: "openApi3.1" }
+    )
+  )
 
 export const openApiSchemas = (
   schemas: EffectOpenApiSchemaOptions

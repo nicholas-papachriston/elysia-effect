@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Cause, Effect, Schema } from "effect"
 import { ValidationError } from "../src/errors"
-import { decodeUnknown, encode } from "../src/schema"
+import { decodeUnknown, encode, toElysiaValidator, toStandardSchema } from "../src/schema"
 
 const Payload = Schema.Struct({
   name: Schema.String
@@ -52,5 +52,26 @@ describe("schema helpers", () => {
     const error = new ValidationError({ message: "Invalid payload" })
 
     expect(error._tag).toBe("ValidationError")
+  })
+
+  test("exposes Effect Schema as Standard Schema for Elysia", () => {
+    const standard = toStandardSchema(Payload)
+
+    expect(standard["~standard"].vendor).toBe("effect")
+    expect(typeof standard["~standard"].validate).toBe("function")
+  })
+
+  test("maps Effect Schema fields onto Elysia validator options", () => {
+    const validator = toElysiaValidator({
+      body: Payload,
+      query: Payload,
+      cookies: Payload,
+      response: Payload
+    })
+
+    expect(validator.body?.["~standard"].vendor).toBe("effect")
+    expect(validator.query?.["~standard"].vendor).toBe("effect")
+    expect(validator.cookie?.["~standard"].vendor).toBe("effect")
+    expect(validator.response?.["~standard"].vendor).toBe("effect")
   })
 })

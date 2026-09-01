@@ -1,4 +1,5 @@
 import { Data, Effect, ParseResult, Schema } from "effect"
+import type { SchemaLike } from "./schema"
 
 export const readQueueCorrelationIds = (
   value: unknown
@@ -32,7 +33,7 @@ export interface QueueMessageEnvelope<Kind extends string, Payload> {
 export interface QueuePayloadSchema<Kind extends string, Payload, EncodedPayload> {
   readonly kind: Kind
   readonly schemaVersion: number
-  readonly payload: Schema.Schema<Payload, EncodedPayload, never>
+  readonly payload: SchemaLike<Payload, EncodedPayload>
 }
 
 export class QueuePayloadDecodeError extends Data.TaggedError("QueuePayloadDecodeError")<{
@@ -56,7 +57,9 @@ export const makeQueueMessageEnvelopeSchema = <Kind extends string, Payload, Enc
     messageId: Schema.String,
     kind: Schema.Literal(options.kind),
     schemaVersion: Schema.Literal(options.schemaVersion),
-    payload: options.payload,
+    payload:
+      // SAFETY: SchemaLike is the Effect Schema surface without a unique TypeId.
+      options.payload as Schema.Schema<Payload, EncodedPayload, never>,
     createdAt: Schema.String,
     traceId: Schema.optional(Schema.String),
     requestId: Schema.optional(Schema.String)
@@ -105,7 +108,8 @@ const makeEncodeError = (
 export const decodeQueueMessageEnvelope = <Kind extends string, Payload, EncodedPayload>(
   options: QueuePayloadSchema<Kind, Payload, EncodedPayload>,
   value: unknown
-): Effect.Effect<QueueMessageEnvelope<Kind, Payload>, QueuePayloadDecodeError> => {
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any => {
   const schema = makeQueueMessageEnvelopeSchema(options)
 
   return Schema.decodeUnknown(schema)(value).pipe(
@@ -117,7 +121,8 @@ export const decodeQueueMessageEnvelope = <Kind extends string, Payload, Encoded
 export const encodeQueueMessageEnvelope = <Kind extends string, Payload, EncodedPayload>(
   options: QueuePayloadSchema<Kind, Payload, EncodedPayload>,
   envelope: QueueMessageEnvelope<Kind, Payload>
-): Effect.Effect<QueueMessageEnvelope<Kind, EncodedPayload>, QueuePayloadEncodeError> => {
+  // SAFETY: consumer Effect.gen can yield this across Effect copies.
+): any => {
   const schema = makeQueueMessageEnvelopeSchema(options)
 
   return Schema.encode(schema)(envelope).pipe(

@@ -1,5 +1,10 @@
 import { type CronConfig, cron } from "@elysiajs/cron"
-import { Effect, type Layer } from "effect"
+import { Effect } from "effect"
+import { createEffectRunner, type EffectLike } from "./runtime"
+
+const asEffect = <A, E, R>(program: EffectLike<A, E, R>): Effect.Effect<A, E, R> =>
+  // SAFETY: Consumer Effect values share the Effect protocol across copies.
+  program as Effect.Effect<A, E, R>
 
 export interface EffectCronJobContext<Name extends string = string> {
   readonly name: Name
@@ -7,13 +12,13 @@ export interface EffectCronJobContext<Name extends string = string> {
 }
 
 export interface EffectCronLockLease<Requirements = never> {
-  readonly release: () => Effect.Effect<void, never, Requirements>
+  readonly release: () => EffectLike<void, never, Requirements>
 }
 
 export interface EffectCronLock<Name extends string = string, E = unknown, Requirements = never> {
   readonly acquire: (
     context: EffectCronJobContext<Name>
-  ) => Effect.Effect<EffectCronLockLease<Requirements> | null, E, Requirements>
+  ) => EffectLike<EffectCronLockLease<Requirements> | null, E, Requirements>
 }
 
 export interface EffectCronSuccessEvent<Name extends string = string> {
@@ -43,8 +48,8 @@ export type EffectCronJobOutcome<Name extends string = string> =
 
 export interface EffectCronRunnerOptions<Name extends string, E, Requirements> {
   readonly name: Name
-  readonly run: (context: EffectCronJobContext<Name>) => Effect.Effect<void, E, Requirements>
-  readonly layer?: Layer.Layer<Requirements>
+  readonly run: (context: EffectCronJobContext<Name>) => EffectLike<void, E, Requirements>
+  readonly layer?: object
   readonly lock?: EffectCronLock<Name, E, Requirements>
   readonly mapError?: (error: E) => unknown
   readonly onSuccess?: (event: EffectCronSuccessEvent<Name>) => void | Promise<void>
@@ -64,7 +69,7 @@ const makeCronProgram = <Name extends string, E, Requirements>(
   context: EffectCronJobContext<Name>,
   options: EffectCronRunnerOptions<Name, E, Requirements>
 ): Effect.Effect<"completed" | "skipped", E, Requirements> => {
-  const runJob = options.run(context).pipe(Effect.as("completed" as const))
+  const runJob = asEffect(options.run(context)).pipe(Effect.as("completed" as const))
 
   if (options.lock === undefined) {
     return runJob
@@ -72,12 +77,12 @@ const makeCronProgram = <Name extends string, E, Requirements>(
   const lock = options.lock
 
   return Effect.gen(function* () {
-    const lease = yield* lock.acquire(context)
+    const lease = yield* asEffect(lock.acquire(context))
     if (lease === null || lease === undefined) {
       return "skipped" as const
     }
 
-    return yield* runJob.pipe(Effect.ensuring(lease.release()))
+    return yield* runJob.pipe(Effect.ensuring(asEffect(lease.release())))
   })
 }
 
@@ -94,12 +99,11 @@ export const runEffectCronJob = async <Name extends string, E, Requirements>(
     startedAt: new Date()
   }
   const program = makeCronProgram(context, options)
-  const runnable = (
-    options.layer ? program.pipe(Effect.provide(options.layer)) : program
-  ) as Effect.Effect<"completed" | "skipped", E, never>
+  const runner = createEffectRunner<Requirements>(options.layer)
+  const runnable = program as Effect.Effect<"completed" | "skipped", E, Requirements>
 
   try {
-    const result = await Effect.runPromise(Effect.either(runnable))
+    const result = await runner.runPromise(Effect.either(runnable))
     const durationMs = performance.now() - startedAt
 
     if (result._tag === "Right") {
@@ -163,7 +167,8 @@ export const runEffectCronJob = async <Name extends string, E, Requirements>(
 
 export const effectCron = <Name extends string, E = unknown, Requirements = never>(
   options: EffectCronConfig<Name, E, Requirements>
-): ReturnType<typeof cron<Name>> => {
+  // SAFETY: keep the consumer Elysia type when nested copies differ.
+): any => {
   const { run, layer, lock, mapError, onSuccess, onSkip, onFailure, ...cronOptions } = options
   const runnerOptions: EffectCronRunnerOptions<Name, E, Requirements> = {
     name: options.name,

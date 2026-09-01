@@ -4,7 +4,7 @@
 
 `elysia-effect` is a public TypeScript library. It runs Effect programs at Elysia HTTP boundaries: routes, schema decode/encode, tagged-error HTTP mapping, SSE streams, queue envelopes, and cron jobs. The npm name is unscoped `elysia-effect`, matching community Elysia plugins.
 
-**Tech stack:** TypeScript (strict), Bun runtime and test runner, oxfmt for format, oxlint McCabe CCN 20 as a lint deny. Effect `^3.18.0` and Elysia `^1.4.0` are runtime dependencies and peer dependencies.
+**Tech stack:** TypeScript (strict), Bun runtime and test runner, oxfmt for format, oxlint McCabe CCN 20 as a lint deny. Effect `^3.18.0` and Elysia `^1.4.0` are peer dependencies only. `@elysiajs/cron` is an optional peer for `elysia-effect/scheduler`.
 
 Elaris (`apps/api`) and Admin consume this package from the sibling checkout via `file:` paths. Do not add product-domain packages here.
 
@@ -20,9 +20,12 @@ elysia-effect/
 │   ├── openapi.ts      # OpenAPI JSON Schema helpers
 │   ├── plugin.ts       # effectPlugin
 │   ├── queue.ts        # queue payload envelopes
-│   ├── routes.ts       # effectGet / effectPost / effectPatch / effectPut / effectDelete
+│   ├── request.ts      # request id, headers, cookies, client meta
+│   ├── router.ts       # Elysia HTTP method adapter
+│   ├── routes.ts       # HTTP Effect helpers for every Elysia HTTP method
+│   ├── runtime.ts      # ManagedRuntime, abort, Exit observation
 │   ├── scheduler.ts    # effectCron
-│   ├── schema.ts       # decodeUnknown / encode
+│   ├── schema.ts       # decodeUnknown / encode / toStandardSchema
 │   ├── stream.ts       # SSE and ReadableStream helpers
 │   ├── telemetry.ts    # global Effect route telemetry
 │   └── trace.ts        # x-trace-id / traceparent
@@ -108,6 +111,11 @@ Read this file before editing code.
 - Keep tagged HTTP mappings structural. Do not import Elaris or Admin domain packages.
 - Keep the package root export. Community Elysia plugins import from the package name.
 - Subpath exports stay supported for focused imports.
+- Isolate Elysia HTTP registration in `router.ts` and Effect execution in `runtime.ts`.
+- Keep `effect` and `elysia` as peer dependencies only. Do not nest a second copy.
+- Reuse `ManagedRuntime` per Layer object. Do not `Effect.provide` on every request.
+- `@elysiajs/cron` is an optional peer. Import it only from `scheduler.ts`.
+- Do not re-export scheduler from the package root. Consumers import `elysia-effect/scheduler`.
 - Trusted auth headers stay `x-elaris-*` for Elaris compatibility.
 - Sibling consumers: Elaris `apps/api` (`workspace:*`) and Admin (`file:../elysia-effect`).
 - Do not publish to npm unless USER asks. Local gates stay mandatory.

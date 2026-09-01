@@ -17,8 +17,8 @@ import {
   QueuePayloadDecodeError,
   QueuePayloadEncodeError
 } from "../src/queue"
-import { effectDelete, effectGet, effectPatch, effectPost } from "../src/routes"
-import { decodeUnknown, encode } from "../src/schema"
+import { effectDelete, effectGet, effectHead, effectPatch, effectPost } from "../src/routes"
+import { decodeUnknown, encode, toElysiaValidator, toStandardSchema } from "../src/schema"
 import {
   encodeServerSentEvent,
   sseStreamResponse,
@@ -44,6 +44,7 @@ describe("elysia-effect public API", () => {
     expect(typeof defaultErrorMapper).toBe("function")
     expect(typeof effectDelete).toBe("function")
     expect(typeof effectGet).toBe("function")
+    expect(typeof effectHead).toBe("function")
     expect(typeof effectPatch).toBe("function")
     expect(typeof effectPlugin).toBe("function")
     expect(packageEffectGet).toBe(effectGet)
@@ -63,6 +64,8 @@ describe("elysia-effect public API", () => {
     expect(typeof sseStreamResponse).toBe("function")
     expect(typeof streamToReadableStream).toBe("function")
     expect(typeof streamToReadableStreamEffect).toBe("function")
+    expect(typeof toStandardSchema).toBe("function")
+    expect(typeof toElysiaValidator).toBe("function")
   })
 
   test("package tests avoid the removed package root barrel", async () => {
@@ -89,10 +92,12 @@ describe("elysia-effect public API", () => {
   test("package source stays free of Elaris domain package dependencies", async () => {
     const packageJson = (await Bun.file(join(packageDirectoryPath, "package.json")).json()) as {
       readonly dependencies?: Record<string, string>
+      readonly peerDependencies?: Record<string, string>
     }
     const dependencies = Object.keys(packageJson.dependencies ?? {})
     const sourceFiles = await readdir(sourceDirectoryPath)
-    const offenders: string[] = []
+    const domainOffenders: string[] = []
+    const cronOffenders: string[] = []
 
     for (const file of sourceFiles) {
       if (!file.endsWith(".ts")) {
@@ -102,12 +107,27 @@ describe("elysia-effect public API", () => {
       const source = await Bun.file(join(sourceDirectoryPath, file)).text()
 
       if (source.includes("@elaris/domain") || source.includes("@elaris/shared")) {
-        offenders.push(file)
+        domainOffenders.push(file)
+      }
+
+      if (file !== "scheduler.ts" && source.includes("@elysiajs/cron")) {
+        cronOffenders.push(file)
       }
     }
 
-    expect(dependencies.filter((dependency) => dependency.startsWith("@elaris/"))).toEqual([])
-    expect(offenders).toEqual([])
+    expect(dependencies).toEqual([])
+    expect(packageJson.peerDependencies?.effect).toBeDefined()
+    expect(packageJson.peerDependencies?.elysia).toBeDefined()
+    expect(packageJson.peerDependencies?.["@elysiajs/cron"]).toBeDefined()
+    expect(domainOffenders).toEqual([])
+    expect(cronOffenders).toEqual([])
+  })
+
+  test("root package entry does not load the optional cron peer", async () => {
+    const index = await Bun.file(join(sourceDirectoryPath, "index.ts")).text()
+
+    expect(index.includes("scheduler")).toBe(false)
+    expect(index.includes("@elysiajs/cron")).toBe(false)
   })
 
   test("uses the unscoped community plugin name", async () => {

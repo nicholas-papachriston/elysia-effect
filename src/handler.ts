@@ -1,21 +1,30 @@
-import { Effect, type Layer, type Schema } from "effect"
+import { Effect } from "effect"
 import { type AuthContext, type RequestContext, RequestContextTag, type RequestId } from "./context"
-import { defaultErrorMapper, type HttpErrorResponse } from "./errors"
-import { decodeUnknown, encode } from "./schema"
+import { defaultErrorMapper, type HttpErrorResponse, type ValidationError } from "./errors"
+import {
+  cookiesToObject,
+  emptyObject,
+  getRequestId,
+  headersToObject,
+  readClientMeta
+} from "./request"
+import { createEffectRunner, type EffectLike, type EffectRunner, runObserved } from "./runtime"
+import { decodeUnknown, encode, type SchemaLike } from "./schema"
 import { readTraceId, TRACE_ID_HEADER } from "./trace"
 
 export interface EffectRouteSchemas {
-  readonly body?: Schema.Schema.Any
-  readonly query?: Schema.Schema.Any
-  readonly params?: Schema.Schema.Any
-  readonly headers?: Schema.Schema.Any
-  readonly cookies?: Schema.Schema.Any
-  readonly response?: Schema.Schema.Any
+  readonly body?: SchemaLike
+  readonly query?: SchemaLike
+  readonly params?: SchemaLike
+  readonly headers?: SchemaLike
+  readonly cookies?: SchemaLike
+  readonly response?: SchemaLike
 }
 
 export interface EffectHandlerContext<Body, Query, Params, Headers, Cookies> {
   readonly request: Request
   readonly requestId: RequestId
+  readonly traceId: string
   readonly auth: AuthContext
   readonly set: ElysiaLikeContext["set"]
   readonly body: Body
@@ -24,6 +33,9 @@ export interface EffectHandlerContext<Body, Query, Params, Headers, Cookies> {
   readonly headers: Headers
   readonly cookies: Cookies
   readonly abortSignal: AbortSignal
+  readonly clientIp?: string
+  readonly userAgent?: string
+  readonly rawBody?: string
 }
 
 export interface EffectTelemetryHooks {
@@ -48,20 +60,28 @@ export interface EffectRequestErrorEvent extends EffectRequestStartEvent {
   readonly error: unknown
 }
 
+export interface EffectPluginBindings<Requirements = never> {
+  readonly runner: EffectRunner<Requirements>
+  readonly mapError: (error: unknown) => HttpErrorResponse
+  readonly auth?: (context: ElysiaLikeContext) => AuthContext | Promise<AuthContext>
+  readonly telemetry?: EffectTelemetryHooks
+}
+
 export interface EffectHandlerOptions<
-  _Body,
-  _Query,
-  _Params,
-  _Headers,
-  _Cookies,
-  _ResponseBody,
-  Requirements
+  _Body = Record<string, never>,
+  _Query = Record<string, never>,
+  _Params = Record<string, never>,
+  _RequestHeaders = Record<string, string>,
+  _RequestCookies = Record<string, string>,
+  _ResponseBody = unknown,
+  _Requirements = never
 > {
   readonly schemas?: EffectRouteSchemas
-  readonly layer?: Layer.Layer<Requirements, never, unknown>
+  readonly layer?: object
   readonly mapError?: (error: unknown) => HttpErrorResponse
   readonly auth?: (context: ElysiaLikeContext) => AuthContext | Promise<AuthContext>
   readonly telemetry?: EffectTelemetryHooks
+  readonly rawBody?: boolean
 }
 
 export interface ElysiaLikeContext {
@@ -72,40 +92,12 @@ export interface ElysiaLikeContext {
   readonly headers?: Record<string, string | undefined>
   readonly cookie?: Record<string, { readonly value: unknown } | string | undefined>
   readonly requestAuth?: AuthContext
+  readonly elysiaEffect?: EffectPluginBindings
   readonly set: {
     status?: number | string
     headers?: Record<string, string | number>
   }
 }
-
-const emptyObject = {}
-
-const getRequestId = (context: ElysiaLikeContext): RequestId => {
-  const incoming = context.headers?.["x-request-id"] ?? context.request.headers.get("x-request-id")
-  return (incoming ?? crypto.randomUUID()) as RequestId
-}
-
-const makeRequestContext = <Body, Query, Params, RequestHeaders, RequestCookies>(
-  context: ElysiaLikeContext,
-  requestId: RequestId,
-  body: Body,
-  query: Query,
-  params: Params,
-  headers: RequestHeaders,
-  cookies: RequestCookies,
-  auth: AuthContext
-): EffectHandlerContext<Body, Query, Params, RequestHeaders, RequestCookies> => ({
-  request: context.request,
-  requestId,
-  auth,
-  set: context.set,
-  body,
-  query,
-  params,
-  headers,
-  cookies,
-  abortSignal: context.request.signal
-})
 
 export const anonymousAuth: AuthContext = {
   isAdmin: false,
@@ -139,50 +131,15 @@ export const trustedAuthFromHeaders = (context: ElysiaLikeContext): AuthContext 
   return authFromHeaders(context)
 }
 
-const headersToObject = (request: Request): Record<string, string> =>
-  Object.fromEntries(request.headers.entries())
-
-const parseCookieHeader = (cookieHeader: string | null): Record<string, string> => {
-  if (!cookieHeader) {
-    return {}
-  }
-
-  return Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0)
-      .map((part) => {
-        const separator = part.indexOf("=")
-
-        if (separator === -1) {
-          return [part, ""]
-        }
-
-        return [part.slice(0, separator), decodeURIComponent(part.slice(separator + 1))]
-      })
-  )
-}
-
-const cookiesToObject = (context: ElysiaLikeContext): Record<string, string> => {
-  if (!context.cookie) {
-    return parseCookieHeader(context.request.headers.get("cookie"))
-  }
-
-  return Object.fromEntries(
-    Object.entries(context.cookie).flatMap(([name, cookie]) => {
-      if (cookie === undefined) {
-        return []
-      }
-
-      if (typeof cookie === "string") {
-        return [[name, cookie]]
-      }
-
-      return typeof cookie.value === "string" ? [[name, cookie.value]] : []
-    })
-  )
-}
+const decodeOptional = <A>(
+  schema: SchemaLike | undefined,
+  value: unknown,
+  label: string,
+  fallback: A
+): Effect.Effect<A, ValidationError> =>
+  schema === undefined
+    ? Effect.succeed(fallback)
+    : decodeUnknown(schema as SchemaLike<A>, value, label)
 
 const createStartEvent = (
   context: ElysiaLikeContext,
@@ -193,6 +150,83 @@ const createStartEvent = (
   method: context.request.method,
   path: new URL(context.request.url).pathname
 })
+
+const resolveAuth = async (
+  context: ElysiaLikeContext,
+  routeAuth: EffectHandlerOptions["auth"]
+): Promise<AuthContext> => {
+  const auth = routeAuth ?? context.elysiaEffect?.auth
+  if (auth === undefined) {
+    return anonymousAuth
+  }
+
+  return Promise.resolve(auth(context))
+}
+
+const applyCorrelationHeaders = (
+  context: ElysiaLikeContext,
+  startEvent: EffectRequestStartEvent
+) => {
+  context.set.headers = {
+    ...context.set.headers,
+    "x-request-id": startEvent.requestId,
+    [TRACE_ID_HEADER]: startEvent.traceId
+  }
+}
+
+export const makeRequestContext = (
+  context: ElysiaLikeContext,
+  startEvent: EffectRequestStartEvent,
+  auth: AuthContext
+): RequestContext => {
+  const clientMeta = readClientMeta(context.request)
+
+  return {
+    requestId: startEvent.requestId,
+    request: context.request,
+    auth,
+    headers: headersToObject(context.request),
+    cookies: cookiesToObject(context),
+    abortSignal: context.request.signal,
+    ...clientMeta
+  }
+}
+
+const writeObservedResult = <A>(
+  context: ElysiaLikeContext,
+  startEvent: EffectRequestStartEvent,
+  startedAt: number,
+  telemetry: EffectTelemetryHooks | undefined,
+  mapError: (error: unknown) => HttpErrorResponse,
+  observed: Awaited<ReturnType<typeof runObserved<A, unknown, never>>>
+): A | HttpErrorResponse["body"] | undefined => {
+  switch (observed.kind) {
+    case "success":
+      telemetry?.onSuccess?.({
+        ...startEvent,
+        durationMs: performance.now() - startedAt
+      })
+      return observed.value
+    case "failure":
+    case "defect": {
+      const error = observed.error
+      const mapped = mapError(error)
+      context.set.status = mapped.status
+      telemetry?.onError?.({
+        ...startEvent,
+        durationMs: performance.now() - startedAt,
+        error
+      })
+      return mapped.body
+    }
+    case "interrupt":
+      return undefined
+    default: {
+      const exhaustive: never = observed
+      return exhaustive
+    }
+  }
+}
 
 export const createEffectHandler =
   <
@@ -215,120 +249,96 @@ export const createEffectHandler =
     >,
     handler: (
       context: EffectHandlerContext<Body, Query, Params, RequestHeaders, RequestCookies>
-    ) => Effect.Effect<ResponseBody, unknown, Requirements | RequestContextTag>
+    ) => EffectLike<ResponseBody, unknown, Requirements | RequestContextTag>
   ) =>
   async (context: ElysiaLikeContext): Promise<unknown> => {
-    const mapError = options.mapError ?? defaultErrorMapper
+    const plugin = context.elysiaEffect
+    const mapError = options.mapError ?? plugin?.mapError ?? defaultErrorMapper
+    const telemetry = options.telemetry ?? plugin?.telemetry
+    const runner = options.layer
+      ? createEffectRunner(options.layer)
+      : (plugin?.runner ?? createEffectRunner())
     const requestId = getRequestId(context)
-    const auth =
-      options.auth === undefined ? anonymousAuth : await Promise.resolve(options.auth(context))
+    const auth = await resolveAuth(context, options.auth)
     const startedAt = performance.now()
     const startEvent = createStartEvent(context, requestId)
-    options.telemetry?.onStart?.(startEvent)
-    context.set.headers = {
-      ...context.set.headers,
-      "x-request-id": requestId,
-      [TRACE_ID_HEADER]: startEvent.traceId
-    }
+    telemetry?.onStart?.(startEvent)
+    applyCorrelationHeaders(context, startEvent)
+    const clientMeta = readClientMeta(context.request)
+    const rawBody = options.rawBody ? await context.request.clone().text() : undefined
 
     const program = Effect.gen(function* () {
-      const body = options.schemas?.body
-        ? ((yield* decodeUnknown(options.schemas.body, context.body, "request body")) as Body)
-        : (emptyObject as Body)
-      const query = options.schemas?.query
-        ? ((yield* decodeUnknown(
-            options.schemas.query,
-            context.query ?? emptyObject,
-            "query"
-          )) as Query)
-        : (emptyObject as Query)
-      const params = options.schemas?.params
-        ? ((yield* decodeUnknown(
-            options.schemas.params,
-            context.params ?? emptyObject,
-            "params"
-          )) as Params)
-        : (emptyObject as Params)
-      const headers = options.schemas?.headers
-        ? ((yield* decodeUnknown(
-            options.schemas.headers,
-            headersToObject(context.request),
-            "headers"
-          )) as RequestHeaders)
-        : (headersToObject(context.request) as RequestHeaders)
-      const cookies = options.schemas?.cookies
-        ? ((yield* decodeUnknown(
-            options.schemas.cookies,
-            cookiesToObject(context),
-            "cookies"
-          )) as RequestCookies)
-        : (cookiesToObject(context) as RequestCookies)
-
-      const handlerContext = makeRequestContext(
-        context,
+      const body = yield* decodeOptional(
+        options.schemas?.body,
+        options.rawBody ? rawBody : context.body,
+        "request body",
+        emptyObject as Body
+      )
+      const query = yield* decodeOptional(
+        options.schemas?.query,
+        context.query ?? emptyObject,
+        "query",
+        emptyObject as Query
+      )
+      const params = yield* decodeOptional(
+        options.schemas?.params,
+        context.params ?? emptyObject,
+        "params",
+        emptyObject as Params
+      )
+      const headers = yield* decodeOptional(
+        options.schemas?.headers,
+        headersToObject(context.request),
+        "headers",
+        headersToObject(context.request) as RequestHeaders
+      )
+      const cookies = yield* decodeOptional(
+        options.schemas?.cookies,
+        cookiesToObject(context),
+        "cookies",
+        cookiesToObject(context) as RequestCookies
+      )
+      const requestContext = makeRequestContext(context, startEvent, auth)
+      const handlerContext: EffectHandlerContext<
+        Body,
+        Query,
+        Params,
+        RequestHeaders,
+        RequestCookies
+      > = {
+        request: context.request,
         requestId,
+        traceId: startEvent.traceId,
+        auth,
+        set: context.set,
         body,
         query,
         params,
         headers,
         cookies,
-        auth
-      )
-      const userAgent = context.request.headers.get("user-agent")
-      const clientIp =
-        context.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        context.request.headers.get("x-real-ip")
-      const requestContext: RequestContext = {
-        requestId,
-        request: context.request,
-        auth,
-        headers: headersToObject(context.request),
-        cookies: cookiesToObject(context),
         abortSignal: context.request.signal,
-        ...(clientIp ? { clientIp } : {}),
-        ...(userAgent ? { userAgent } : {})
+        ...clientMeta,
+        ...(rawBody === undefined ? {} : { rawBody })
       }
 
-      const result = yield* handler(handlerContext).pipe(
-        Effect.provideService(RequestContextTag, requestContext)
-      )
+      const result = yield* (
+        handler(handlerContext) as Effect.Effect<
+          ResponseBody,
+          unknown,
+          Requirements | RequestContextTag
+        >
+      ).pipe(Effect.provideService(RequestContextTag, requestContext))
 
       return options.schemas?.response
-        ? yield* encode(options.schemas.response, result, "response")
+        ? yield* encode(options.schemas.response as SchemaLike<ResponseBody>, result, "response")
         : result
     })
 
-    const runnable = options.layer ? program.pipe(Effect.provide(options.layer)) : program
+    const observed = await runObserved(
+      runner as EffectRunner<never>,
+      program as Effect.Effect<unknown, unknown, never>,
+      context.request.signal
+    )
 
-    try {
-      const result = await Effect.runPromise(
-        Effect.either(runnable as Effect.Effect<unknown, unknown>)
-      )
-
-      if (result._tag === "Right") {
-        options.telemetry?.onSuccess?.({
-          ...startEvent,
-          durationMs: performance.now() - startedAt
-        })
-        return result.right
-      }
-
-      const mapped = mapError(result.left)
-      context.set.status = mapped.status
-      options.telemetry?.onError?.({
-        ...startEvent,
-        durationMs: performance.now() - startedAt,
-        error: result.left
-      })
-      return mapped.body
-    } catch (defect) {
-      const mapped = mapError(defect)
-      context.set.status = mapped.status
-      options.telemetry?.onError?.({
-        ...startEvent,
-        durationMs: performance.now() - startedAt,
-        error: defect
-      })
-      return mapped.body
-    }
+    return writeObservedResult(context, startEvent, startedAt, telemetry, mapError, observed)
   }

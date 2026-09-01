@@ -1,7 +1,7 @@
 {
   "name": "elysia-effect",
   "version": "0.1.0",
-  "description": "Elysia plugin for Effect programs, schemas, errors, streams, and cron",
+  "description": "Plugin for Elysia that runs Effect programs",
   "keywords": [
     "bun",
     "effect",

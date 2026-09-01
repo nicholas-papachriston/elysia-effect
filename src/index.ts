@@ -15,6 +15,7 @@ export {
   anonymousAuth,
   authFromHeaders,
   createEffectHandler,
+  type EffectBindings,
   type EffectHandlerContext,
   type EffectHandlerOptions,
   type EffectPluginBindings,
@@ -42,6 +43,8 @@ export {
 } from "./openapi"
 export { type EffectHttpMethod, registerElysiaRoute } from "./router"
 export {
+  all,
+  connect,
   effectAll,
   effectConnect,
   effectDelete,
@@ -52,7 +55,15 @@ export {
   effectPost,
   effectPut,
   effectRoute,
-  effectTrace
+  effectTrace,
+  get,
+  head,
+  options,
+  patch,
+  post,
+  put,
+  route,
+  trace
 } from "./routes"
 export {
   createEffectRunner,
@@ -64,7 +75,7 @@ export {
   runObserved,
   withAbort
 } from "./runtime"
-export { type EffectPluginOptions, effectPlugin } from "./plugin"
+export { type EffectOptions, type EffectPluginOptions, effect, effectPlugin } from "./plugin"
 export {
   decodeQueueMessageEnvelope,
   encodeQueueMessageEnvelope,

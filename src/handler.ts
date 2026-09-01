@@ -60,12 +60,15 @@ export interface EffectRequestErrorEvent extends EffectRequestStartEvent {
   readonly error: unknown
 }
 
-export interface EffectPluginBindings<Requirements = never> {
+export interface EffectBindings<Requirements = never> {
   readonly runner: EffectRunner<Requirements>
   readonly mapError: (error: unknown) => HttpErrorResponse
   readonly auth?: (context: ElysiaLikeContext) => AuthContext | Promise<AuthContext>
   readonly telemetry?: EffectTelemetryHooks
 }
+
+/** @deprecated Use `EffectBindings`. */
+export type EffectPluginBindings<Requirements = never> = EffectBindings<Requirements>
 
 export interface EffectHandlerOptions<
   _Body = Record<string, never>,
@@ -92,7 +95,8 @@ export interface ElysiaLikeContext {
   readonly headers?: Record<string, string | undefined>
   readonly cookie?: Record<string, { readonly value: unknown } | string | undefined>
   readonly requestAuth?: AuthContext
-  readonly elysiaEffect?: EffectPluginBindings
+  readonly effect?: EffectBindings
+  readonly elysiaEffect?: EffectBindings
   readonly set: {
     status?: number | string
     headers?: Record<string, string | number>
@@ -252,7 +256,7 @@ export const createEffectHandler =
     ) => EffectLike<ResponseBody, unknown, Requirements | RequestContextTag>
   ) =>
   async (context: ElysiaLikeContext): Promise<unknown> => {
-    const plugin = context.elysiaEffect
+    const plugin = context.effect ?? context.elysiaEffect
     const mapError = options.mapError ?? plugin?.mapError ?? defaultErrorMapper
     const telemetry = options.telemetry ?? plugin?.telemetry
     const runner = options.layer

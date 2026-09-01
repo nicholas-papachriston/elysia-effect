@@ -4,7 +4,7 @@ import { type AuthContext, RequestContextTag } from "./context"
 import { defaultErrorMapper, type HttpErrorResponse } from "./errors"
 import {
   anonymousAuth,
-  type EffectPluginBindings,
+  type EffectBindings,
   type EffectTelemetryHooks,
   type ElysiaLikeContext,
   makeRequestContext
@@ -20,12 +20,15 @@ import {
 } from "./runtime"
 import { readTraceId, TRACE_ID_HEADER } from "./trace"
 
-export interface EffectPluginOptions {
+export interface EffectOptions {
   readonly layer?: object
   readonly mapError?: (error: unknown) => HttpErrorResponse
   readonly auth?: (context: ElysiaLikeContext) => AuthContext | Promise<AuthContext>
   readonly telemetry?: EffectTelemetryHooks
 }
+
+/** @deprecated Use `EffectOptions`. */
+export type EffectPluginOptions = EffectOptions
 
 const responseFromMappedError = (
   error: unknown,
@@ -78,10 +81,10 @@ const runDecoratorProgram = async <A, E, Requirements>(
   return valueFromObserved(observed, mapError)
 }
 
-export const effectPlugin = <Requirements = never>(options: EffectPluginOptions = {}) => {
+export const effect = <Requirements = never>(options: EffectOptions = {}) => {
   const mapError = options.mapError ?? defaultErrorMapper
   const runner = createEffectRunner<Requirements>(options.layer)
-  const bindings: EffectPluginBindings<Requirements> = {
+  const bindings: EffectBindings<Requirements> = {
     runner,
     mapError,
     ...(options.auth ? { auth: options.auth } : {}),
@@ -89,6 +92,7 @@ export const effectPlugin = <Requirements = never>(options: EffectPluginOptions 
   }
 
   const plugin = new Elysia({ name: "elysia-effect" })
+    .decorate("effect", bindings)
     .decorate("elysiaEffect", bindings)
     .decorate("runEffect", async <A, E>(program: EffectLike<A, E, Requirements>) =>
       runDecoratorProgram(runner, program, mapError)
@@ -134,3 +138,6 @@ export const effectPlugin = <Requirements = never>(options: EffectPluginOptions 
   // SAFETY: keep the consumer Elysia type when nested copies differ.
   return plugin as any
 }
+
+/** @deprecated Use `effect`. */
+export const effectPlugin = effect

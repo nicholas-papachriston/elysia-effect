@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { Context, Data, Effect, Layer, Schema } from "effect"
 import { Elysia } from "elysia"
 import { RequestContextTag } from "../src/context"
-import { effectPlugin } from "../src/plugin"
-import { effectGet } from "../src/routes"
+import { effect } from "../src/plugin"
+import { get } from "../src/routes"
 import { toElysiaValidator } from "../src/schema"
 
 interface GreetingService {
@@ -19,14 +19,14 @@ class AuthError extends Data.TaggedError("AuthError")<{
   readonly message: string
 }> {}
 
-describe("effectPlugin", () => {
-  test("registers under the unscoped community plugin name", () => {
-    expect(effectPlugin().config.name).toBe("elysia-effect")
+describe("effect", () => {
+  test("registers under the unscoped plugin name", () => {
+    expect(effect().config.name).toBe("elysia-effect")
   })
 
   test("adds a runEffect decorator for successful programs", async () => {
     const app = new Elysia()
-      .use(effectPlugin())
+      .use(effect())
       .get("/health", ({ runEffect }) => runEffect(Effect.succeed({ ok: true })))
 
     const response = await app.handle(new Request("http://localhost/health"))
@@ -37,7 +37,7 @@ describe("effectPlugin", () => {
 
   test("provides the configured layer to decorated programs", async () => {
     const app = new Elysia()
-      .use(effectPlugin({ layer: Layer.succeed(GreetingServiceTag, { greeting: "hello" }) }))
+      .use(effect({ layer: Layer.succeed(GreetingServiceTag, { greeting: "hello" }) }))
       .get("/greeting", ({ runEffect }) =>
         runEffect(
           Effect.gen(function* () {
@@ -56,7 +56,7 @@ describe("effectPlugin", () => {
 
   test("maps typed failures returned through runEffect", async () => {
     const app = new Elysia()
-      .use(effectPlugin())
+      .use(effect())
       .get("/private", ({ runEffect }) =>
         runEffect(Effect.fail(new AuthError({ message: "Sign in required" })))
       )
@@ -72,7 +72,7 @@ describe("effectPlugin", () => {
 
   test("maps typed failures after providing the configured layer", async () => {
     const app = new Elysia()
-      .use(effectPlugin({ layer: Layer.succeed(GreetingServiceTag, { greeting: "private" }) }))
+      .use(effect({ layer: Layer.succeed(GreetingServiceTag, { greeting: "private" }) }))
       .get("/layered-private", ({ runEffect }) =>
         runEffect(
           Effect.gen(function* () {
@@ -95,7 +95,7 @@ describe("effectPlugin", () => {
   })
 
   test("maps unexpected defects to internal errors", async () => {
-    const app = new Elysia().use(effectPlugin()).get("/defect", ({ runEffect }) =>
+    const app = new Elysia().use(effect()).get("/defect", ({ runEffect }) =>
       runEffect(
         Effect.sync(() => {
           throw new Error("boom")
@@ -114,7 +114,7 @@ describe("effectPlugin", () => {
 
   test("unwraps Effect values returned from native Elysia handlers", async () => {
     const app = new Elysia()
-      .use(effectPlugin({ layer: Layer.succeed(GreetingServiceTag, { greeting: "native" }) }))
+      .use(effect({ layer: Layer.succeed(GreetingServiceTag, { greeting: "native" }) }))
       .get("/native", () =>
         Effect.gen(function* () {
           const service = yield* GreetingServiceTag
@@ -131,7 +131,7 @@ describe("effectPlugin", () => {
 
   test("maps typed failures from native Effect returns", async () => {
     const app = new Elysia()
-      .use(effectPlugin())
+      .use(effect())
       .get("/denied", () => Effect.fail(new AuthError({ message: "native deny" })))
 
     const response = await app.handle(new Request("http://localhost/denied"))
@@ -144,7 +144,7 @@ describe("effectPlugin", () => {
   })
 
   test("leaves non-Effect responses unchanged", async () => {
-    const app = new Elysia().use(effectPlugin()).get("/plain", () => ({ ok: true }))
+    const app = new Elysia().use(effect()).get("/plain", () => ({ ok: true }))
 
     const response = await app.handle(new Request("http://localhost/plain"))
 
@@ -154,7 +154,7 @@ describe("effectPlugin", () => {
 
   test("unwraps Effect values inside an Elysia group", async () => {
     const app = new Elysia()
-      .use(effectPlugin())
+      .use(effect())
       .group("/v1", (grouped) => grouped.get("/health", () => Effect.succeed({ ok: true })))
 
     const response = await app.handle(new Request("http://localhost/v1/health"))
@@ -164,7 +164,7 @@ describe("effectPlugin", () => {
   })
 
   test("provides RequestContext to native Effect returns", async () => {
-    const app = new Elysia().use(effectPlugin()).get("/ctx", () =>
+    const app = new Elysia().use(effect()).get("/ctx", () =>
       Effect.gen(function* () {
         const context = yield* RequestContextTag
 
@@ -186,9 +186,9 @@ describe("effectPlugin", () => {
 
   test("route helpers inherit the plugin layer", async () => {
     const app = new Elysia().use(
-      effectPlugin({ layer: Layer.succeed(GreetingServiceTag, { greeting: "plugin" }) })
+      effect({ layer: Layer.succeed(GreetingServiceTag, { greeting: "plugin" }) })
     )
-    effectGet(app, "/inherited", {}, () =>
+    get(app, "/inherited", {}, () =>
       Effect.gen(function* () {
         const service = yield* GreetingServiceTag
 
@@ -206,7 +206,7 @@ describe("effectPlugin", () => {
     const Item = Schema.Struct({
       name: Schema.String
     })
-    const app = new Elysia().use(effectPlugin()).post(
+    const app = new Elysia().use(effect()).post(
       "/items",
       ({ body }) => Effect.succeed({ name: body.name }),
       toElysiaValidator({

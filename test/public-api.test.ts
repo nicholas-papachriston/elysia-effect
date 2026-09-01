@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test"
 import { readdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { effectPlugin as rootEffectPlugin } from "elysia-effect"
-import { effectPlugin as packageEffectPlugin } from "elysia-effect/plugin"
-import { effectGet as packageEffectGet } from "elysia-effect/routes"
+import { effect as rootEffect } from "elysia-effect"
+import { effect as packageEffect } from "elysia-effect/plugin"
+import { get as packageGet } from "elysia-effect/routes"
 import { RequestContextTag } from "../src/context"
 import { defaultErrorMapper } from "../src/errors"
 import { anonymousAuth, authFromHeaders, createEffectHandler } from "../src/handler"
 import { openApiDetail, openApiRouteOptions, openApiSchemas } from "../src/openapi"
-import { effectPlugin } from "../src/plugin"
+import { effect, effectPlugin } from "../src/plugin"
 import {
   decodeQueueMessageEnvelope,
   encodeQueueMessageEnvelope,
@@ -17,7 +17,15 @@ import {
   QueuePayloadDecodeError,
   QueuePayloadEncodeError
 } from "../src/queue"
-import { effectDelete, effectGet, effectHead, effectPatch, effectPost } from "../src/routes"
+import {
+  effectDelete,
+  effectGet,
+  effectHead,
+  effectPatch,
+  effectPost,
+  get,
+  post
+} from "../src/routes"
 import { decodeUnknown, encode, toElysiaValidator, toStandardSchema } from "../src/schema"
 import {
   encodeServerSentEvent,
@@ -46,11 +54,16 @@ describe("elysia-effect public API", () => {
     expect(typeof effectGet).toBe("function")
     expect(typeof effectHead).toBe("function")
     expect(typeof effectPatch).toBe("function")
+    expect(typeof effect).toBe("function")
     expect(typeof effectPlugin).toBe("function")
-    expect(packageEffectGet).toBe(effectGet)
-    expect(packageEffectPlugin).toBe(effectPlugin)
-    expect(rootEffectPlugin).toBe(effectPlugin)
+    expect(effectPlugin).toBe(effect)
+    expect(packageGet).toBe(get)
+    expect(packageEffect).toBe(effect)
+    expect(rootEffect).toBe(effect)
     expect(typeof effectPost).toBe("function")
+    expect(typeof get).toBe("function")
+    expect(get).toBe(effectGet)
+    expect(post).toBe(effectPost)
     expect(typeof encode).toBe("function")
     expect(typeof encodeQueueMessageEnvelope).toBe("function")
     expect(typeof encodeServerSentEvent).toBe("function")
@@ -130,7 +143,7 @@ describe("elysia-effect public API", () => {
     expect(index.includes("@elysiajs/cron")).toBe(false)
   })
 
-  test("uses the unscoped community plugin name", async () => {
+  test("uses the unscoped plugin name", async () => {
     const packageJson = (await Bun.file(join(packageDirectoryPath, "package.json")).json()) as {
       readonly name: string
       readonly private?: boolean

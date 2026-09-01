@@ -1,10 +1,8 @@
 # elysia-effect
 
-Elysia plugin for Effect programs, schemas, errors, streams, and cron.
+Plugin for [Elysia](https://elysiajs.com) that runs [Effect](https://effect.website) programs.
 
-This follows the community plugin name form `elysia-<feature>`. Official plugins use `@elysiajs/*`. This package cannot publish under that org.
-
-The plugin stays small. Effect and Elysia stay peer dependencies. `@elysiajs/cron` is optional and is only needed for `elysia-effect/scheduler`. The package root does not load cron.
+A handler may return `Effect`. Tagged errors map to HTTP. Effect Schema covers decode, encode, and OpenAPI.
 
 ## Installation
 
@@ -12,36 +10,41 @@ The plugin stays small. Effect and Elysia stay peer dependencies. `@elysiajs/cro
 bun add elysia-effect
 ```
 
-## Usage
+Peers: `effect`, `elysia`. Add `@elysiajs/cron` only for the scheduler.
 
-Put `effectPlugin` on the app before routes that return Effect values. The plugin unwraps native Effect returns, maps tagged errors, and provides `RequestContextTag`.
+## Example
 
 ```ts
 import { Elysia } from "elysia"
 import { Effect } from "effect"
-import { effectPlugin } from "elysia-effect"
+import { effect } from "elysia-effect"
 
 const app = new Elysia()
-  .use(effectPlugin({ layer: AppLive, mapError, auth, telemetry }))
+  .use(effect({ layer: AppLive }))
   .get("/health", () => Effect.succeed({ ok: true }))
 ```
 
-Use Effect Schema helpers when you want decode, encode, and OpenAPI from one contract:
+Same shape as `cors`, `jwt`, and `cron`: import the plugin, then `.use(effect())`.
+
+## Routes
 
 ```ts
-import { effectPlugin, effectPost } from "elysia-effect"
+import { Elysia } from "elysia"
+import { effect, post } from "elysia-effect"
 
-const app = new Elysia().use(effectPlugin({ layer: AppLive, mapError }))
+const app = new Elysia().use(effect({ layer: AppLive }))
 
-effectPost(app, "/items", { schemas: { body: CreateItem, response: Item } }, ({ body }) =>
+post(app, "/items", { schemas: { body: CreateItem, response: Item } }, ({ body }) =>
   ItemService.create(body)
 )
 ```
 
-Stay on native `.get` / `.post` and pass Effect Schema values through Standard Schema:
+`get`, `post`, `put`, `patch`, `head`, `options`, `all`, and `route` match Elysia method names. `delete` is a reserved word, so that helper stays `effectDelete`.
+
+Native `.post` with Standard Schema:
 
 ```ts
-import { toElysiaValidator, toStandardSchema } from "elysia-effect"
+import { toElysiaValidator } from "elysia-effect"
 
 app.post(
   "/items",
@@ -51,62 +54,66 @@ app.post(
     response: Item
   })
 )
-
-app.post("/items", ({ body }) => ItemService.create(body), {
-  body: toStandardSchema(CreateItem)
-})
 ```
 
-`runEffect` remains available for handlers that are not Effect-native yet:
+`runEffect` runs a program from a Promise handler:
 
 ```ts
 app.get("/health", ({ runEffect }) => runEffect(Effect.succeed({ ok: true })))
 ```
 
-Subpath imports remain supported:
+## Config
+
+### layer
+
+Application `Layer`. One runtime per Layer object.
+
+### mapError
+
+`(error: unknown) => { status, body }`. Default: `defaultErrorMapper`.
+
+### auth
+
+`(context) => AuthContext | Promise<AuthContext>`.
+
+### telemetry
+
+`onStart`, `onSuccess`, `onError`.
+
+## Scheduler
 
 ```ts
-import { effectPlugin } from "elysia-effect/plugin"
-import { effectGet, effectPost } from "elysia-effect/routes"
-import { effectCron } from "elysia-effect/scheduler"
+import { cron } from "elysia-effect/scheduler"
+
+app.use(
+  cron({
+    name: "heartbeat",
+    pattern: "0 * * * *",
+    run: () => Effect.void
+  })
+)
 ```
 
-Supported subpaths:
+Needs `@elysiajs/cron`. The package root does not load it.
 
-- `./context` — request context types and `RequestContextTag`
-- `./routes` — `effectGet`, `effectPost`, `effectPatch`, `effectPut`, `effectDelete`, `effectHead`, `effectOptions`, `effectAll`, `effectConnect`, `effectTrace`, `effectRoute`
-- `./handler` — `createEffectHandler`, auth helpers, telemetry option types
-- `./schema` — `decodeUnknown`, `encode`, `toStandardSchema`, `toElysiaValidator`
-- `./errors` — `defaultErrorMapper`, `ValidationError`
-- `./openapi` — OpenAPI helpers
-- `./stream` — streaming and SSE helpers
-- `./scheduler` — cron helpers (`@elysiajs/cron` required)
-- `./runtime` — ManagedRuntime runner and abort helpers
-- `./queue` — queue payload envelope helpers
-- `./telemetry` — global Effect route telemetry
-- `./plugin` — `effectPlugin`
+## Imports
 
-## Boundary rules
+| Path                      | Exports                                          |
+| ------------------------- | ------------------------------------------------ |
+| `elysia-effect`           | `effect`, HTTP helpers, schema, errors, streams  |
+| `elysia-effect/plugin`    | `effect`                                         |
+| `elysia-effect/routes`    | `get`, `post`, `put`, `patch`, `effectDelete`, … |
+| `elysia-effect/scheduler` | `cron`                                           |
+| `elysia-effect/schema`    | `toElysiaValidator`, `toStandardSchema`          |
+| `elysia-effect/stream`    | SSE helpers                                      |
+| `elysia-effect/context`   | `RequestContextTag`                              |
 
-- Effect Schema remains the canonical schema layer.
-- Route handlers should decode inputs at the boundary and delegate to Effect programs.
-- Expected failures should stay typed and map through the configured error mapper.
-- Request-scoped data should flow through `RequestContextTag`, not globals.
-- The package must stay free of product-domain package dependencies.
-- Application-specific auth and domain errors match by tagged error name.
-- Put `effectPlugin` on the app before routes that return Effect values.
-- Isolate Elysia HTTP registration and Effect execution. Do not leak nested Effect or Elysia types into consumer signatures.
+Older names (`effectPlugin`, `effectGet`, `effectPost`, `effectCron`) still resolve.
 
-## Setup
+## Development
 
 ```bash
 bun install
 bun run check
 bun test
-```
-
-Workspace consumers in this checkout can keep a sibling path:
-
-```json
-"elysia-effect": "file:../elysia-effect"
 ```

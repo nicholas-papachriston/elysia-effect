@@ -1,4 +1,4 @@
-import { type CronConfig, cron } from "@elysiajs/cron"
+import { type CronConfig, cron as elysiaCron } from "@elysiajs/cron"
 import { Effect } from "effect"
 import { createEffectRunner, type EffectLike } from "./runtime"
 
@@ -165,7 +165,7 @@ export const runEffectCronJob = async <Name extends string, E, Requirements>(
   }
 }
 
-export const effectCron = <Name extends string, E = unknown, Requirements = never>(
+export const cron = <Name extends string, E = unknown, Requirements = never>(
   options: EffectCronConfig<Name, E, Requirements>
   // SAFETY: keep the consumer Elysia type when nested copies differ.
 ): any => {
@@ -181,9 +181,12 @@ export const effectCron = <Name extends string, E = unknown, Requirements = neve
     ...(onFailure ? { onFailure } : {})
   }
 
-  return cron({
+  return elysiaCron({
     ...cronOptions,
     pattern: cronOptions.pattern,
     run: () => runEffectCronJob(runnerOptions).then(() => undefined)
   })
 }
+
+/** @deprecated Use `cron`. */
+export const effectCron = cron

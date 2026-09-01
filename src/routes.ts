@@ -481,3 +481,14 @@ export const effectTrace = <
   >,
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "trace", path, options, handler, routeOptions)
+
+export const all = effectAll
+export const connect = effectConnect
+export const get = effectGet
+export const head = effectHead
+export const options = effectOptions
+export const patch = effectPatch
+export const post = effectPost
+export const put = effectPut
+export const route = effectRoute
+export const trace = effectTrace

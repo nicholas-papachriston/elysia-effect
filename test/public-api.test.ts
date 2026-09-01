@@ -9,7 +9,7 @@ import { RequestContextTag } from "../src/context"
 import { defaultErrorMapper } from "../src/errors"
 import { anonymousAuth, authFromHeaders, createEffectHandler } from "../src/handler"
 import { openApiDetail, openApiRouteOptions, openApiSchemas } from "../src/openapi"
-import { effect, effectPlugin } from "../src/plugin"
+import { effect } from "../src/plugin"
 import {
   decodeQueueMessageEnvelope,
   encodeQueueMessageEnvelope,
@@ -17,15 +17,7 @@ import {
   QueuePayloadDecodeError,
   QueuePayloadEncodeError
 } from "../src/queue"
-import {
-  effectDelete,
-  effectGet,
-  effectHead,
-  effectPatch,
-  effectPost,
-  get,
-  post
-} from "../src/routes"
+import { effectDelete, get, head, patch, post } from "../src/routes"
 import { decodeUnknown, encode, toElysiaValidator, toStandardSchema } from "../src/schema"
 import {
   encodeServerSentEvent,
@@ -51,19 +43,14 @@ describe("elysia-effect public API", () => {
     expect(typeof decodeUnknown).toBe("function")
     expect(typeof defaultErrorMapper).toBe("function")
     expect(typeof effectDelete).toBe("function")
-    expect(typeof effectGet).toBe("function")
-    expect(typeof effectHead).toBe("function")
-    expect(typeof effectPatch).toBe("function")
+    expect(typeof get).toBe("function")
+    expect(typeof head).toBe("function")
+    expect(typeof patch).toBe("function")
     expect(typeof effect).toBe("function")
-    expect(typeof effectPlugin).toBe("function")
-    expect(effectPlugin).toBe(effect)
     expect(packageGet).toBe(get)
     expect(packageEffect).toBe(effect)
     expect(rootEffect).toBe(effect)
-    expect(typeof effectPost).toBe("function")
-    expect(typeof get).toBe("function")
-    expect(get).toBe(effectGet)
-    expect(post).toBe(effectPost)
+    expect(typeof post).toBe("function")
     expect(typeof encode).toBe("function")
     expect(typeof encodeQueueMessageEnvelope).toBe("function")
     expect(typeof encodeServerSentEvent).toBe("function")
@@ -111,6 +98,17 @@ describe("elysia-effect public API", () => {
     const sourceFiles = await readdir(sourceDirectoryPath)
     const domainOffenders: string[] = []
     const cronOffenders: string[] = []
+    const aliasOffenders: string[] = []
+    const aliasTokens = [
+      "effectPlugin",
+      "EffectPluginOptions",
+      "EffectPluginBindings",
+      "effectGet",
+      "effectPost",
+      "effectCron",
+      "elysiaEffect",
+      "x-elaris-"
+    ]
 
     for (const file of sourceFiles) {
       if (!file.endsWith(".ts")) {
@@ -126,6 +124,10 @@ describe("elysia-effect public API", () => {
       if (file !== "scheduler.ts" && source.includes("@elysiajs/cron")) {
         cronOffenders.push(file)
       }
+
+      if (aliasTokens.some((token) => source.includes(token))) {
+        aliasOffenders.push(file)
+      }
     }
 
     expect(dependencies).toEqual([])
@@ -134,6 +136,7 @@ describe("elysia-effect public API", () => {
     expect(packageJson.peerDependencies?.["@elysiajs/cron"]).toBeDefined()
     expect(domainOffenders).toEqual([])
     expect(cronOffenders).toEqual([])
+    expect(aliasOffenders).toEqual([])
   })
 
   test("root package entry does not load the optional cron peer", async () => {

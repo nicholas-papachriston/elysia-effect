@@ -18,7 +18,6 @@ export {
   type EffectBindings,
   type EffectHandlerContext,
   type EffectHandlerOptions,
-  type EffectPluginBindings,
   type EffectRequestErrorEvent,
   type EffectRequestStartEvent,
   type EffectRequestSuccessEvent,
@@ -45,17 +44,7 @@ export { type EffectHttpMethod, registerElysiaRoute } from "./router"
 export {
   all,
   connect,
-  effectAll,
-  effectConnect,
   effectDelete,
-  effectGet,
-  effectHead,
-  effectOptions,
-  effectPatch,
-  effectPost,
-  effectPut,
-  effectRoute,
-  effectTrace,
   get,
   head,
   options,
@@ -75,7 +64,7 @@ export {
   runObserved,
   withAbort
 } from "./runtime"
-export { type EffectOptions, type EffectPluginOptions, effect, effectPlugin } from "./plugin"
+export { type EffectOptions, effect } from "./plugin"
 export {
   decodeQueueMessageEnvelope,
   encodeQueueMessageEnvelope,

@@ -122,7 +122,7 @@ const attachEffectRoute = <
     routeOptionsFor(options, routeOptions)
   )
 
-export const effectRoute = <
+export const route = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -156,7 +156,7 @@ export const effectRoute = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, method, path, options, handler, routeOptions)
 
-export const effectGet = <
+export const get = <
   Query = Record<string, never>,
   Params = Record<string, never>,
   RequestHeaders = Record<string, string>,
@@ -188,7 +188,7 @@ export const effectGet = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "get", path, options, handler, routeOptions)
 
-export const effectHead = <
+export const head = <
   Query = Record<string, never>,
   Params = Record<string, never>,
   RequestHeaders = Record<string, string>,
@@ -220,7 +220,7 @@ export const effectHead = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "head", path, options, handler, routeOptions)
 
-export const effectOptions = <
+export const options = <
   Query = Record<string, never>,
   Params = Record<string, never>,
   RequestHeaders = Record<string, string>,
@@ -252,7 +252,7 @@ export const effectOptions = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "options", path, options, handler, routeOptions)
 
-export const effectPost = <
+export const post = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -285,7 +285,7 @@ export const effectPost = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "post", path, options, handler, routeOptions)
 
-export const effectPatch = <
+export const patch = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -318,7 +318,7 @@ export const effectPatch = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "patch", path, options, handler, routeOptions)
 
-export const effectPut = <
+export const put = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -384,7 +384,7 @@ export const effectDelete = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "delete", path, options, handler, routeOptions)
 
-export const effectAll = <
+export const all = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -417,7 +417,7 @@ export const effectAll = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "all", path, options, handler, routeOptions)
 
-export const effectConnect = <
+export const connect = <
   Body = Record<string, never>,
   Query = Record<string, never>,
   Params = Record<string, never>,
@@ -450,7 +450,7 @@ export const effectConnect = <
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "connect", path, options, handler, routeOptions)
 
-export const effectTrace = <
+export const trace = <
   Query = Record<string, never>,
   Params = Record<string, never>,
   RequestHeaders = Record<string, string>,
@@ -481,14 +481,3 @@ export const effectTrace = <
   >,
   routeOptions?: ElysiaRouteOptions
 ): App => attachEffectRoute(app, "trace", path, options, handler, routeOptions)
-
-export const all = effectAll
-export const connect = effectConnect
-export const get = effectGet
-export const head = effectHead
-export const options = effectOptions
-export const patch = effectPatch
-export const post = effectPost
-export const put = effectPut
-export const route = effectRoute
-export const trace = effectTrace

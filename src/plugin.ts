@@ -27,9 +27,6 @@ export interface EffectOptions {
   readonly telemetry?: EffectTelemetryHooks
 }
 
-/** @deprecated Use `EffectOptions`. */
-export type EffectPluginOptions = EffectOptions
-
 const responseFromMappedError = (
   error: unknown,
   mapError: (error: unknown) => HttpErrorResponse
@@ -93,7 +90,6 @@ export const effect = <Requirements = never>(options: EffectOptions = {}) => {
 
   const plugin = new Elysia({ name: "elysia-effect" })
     .decorate("effect", bindings)
-    .decorate("elysiaEffect", bindings)
     .decorate("runEffect", async <A, E>(program: EffectLike<A, E, Requirements>) =>
       runDecoratorProgram(runner, program, mapError)
     )
@@ -138,6 +134,3 @@ export const effect = <Requirements = never>(options: EffectOptions = {}) => {
   // SAFETY: keep the consumer Elysia type when nested copies differ.
   return plugin as any
 }
-
-/** @deprecated Use `effect`. */
-export const effectPlugin = effect

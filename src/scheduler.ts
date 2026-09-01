@@ -187,6 +187,3 @@ export const cron = <Name extends string, E = unknown, Requirements = never>(
     run: () => runEffectCronJob(runnerOptions).then(() => undefined)
   })
 }
-
-/** @deprecated Use `cron`. */
-export const effectCron = cron

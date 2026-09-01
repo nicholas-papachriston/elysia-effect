@@ -147,9 +147,9 @@ describe("createEffectHandler", () => {
 
     const result = await handler(
       makeContext(undefined, {
-        "x-elaris-user-id": "user-1",
-        "x-elaris-admin": "true",
-        "x-elaris-email-verified": "true"
+        "x-effect-user-id": "user-1",
+        "x-effect-admin": "true",
+        "x-effect-email-verified": "true"
       })
     )
 
@@ -186,17 +186,17 @@ describe("createEffectHandler", () => {
   test("trusted auth ignores raw identity headers without trusted marker", async () => {
     const rawSpoof = trustedAuthFromHeaders(
       makeContext(undefined, {
-        "x-elaris-user-id": "spoofed-user",
-        "x-elaris-admin": "true",
-        "x-elaris-email-verified": "true"
+        "x-effect-user-id": "spoofed-user",
+        "x-effect-admin": "true",
+        "x-effect-email-verified": "true"
       })
     )
     const trusted = trustedAuthFromHeaders(
       makeContext(undefined, {
         [TRUSTED_AUTH_HEADER]: "true",
-        "x-elaris-user-id": "trusted-user",
-        "x-elaris-admin": "true",
-        "x-elaris-email-verified": "true"
+        "x-effect-user-id": "trusted-user",
+        "x-effect-admin": "true",
+        "x-effect-email-verified": "true"
       })
     )
 
@@ -216,8 +216,8 @@ describe("createEffectHandler", () => {
       trustedAuthFromHeaders(
         makeContext(undefined, {
           [TRUSTED_AUTH_HEADER]: "True",
-          "x-elaris-user-id": "spoofed-user",
-          "x-elaris-admin": "true"
+          "x-effect-user-id": "spoofed-user",
+          "x-effect-admin": "true"
         })
       )
     ).toEqual(anonymousAuth)
@@ -225,7 +225,7 @@ describe("createEffectHandler", () => {
       trustedAuthFromHeaders(
         makeContext(undefined, {
           [TRUSTED_AUTH_HEADER]: "1",
-          "x-elaris-user-id": "spoofed-user"
+          "x-effect-user-id": "spoofed-user"
         })
       )
     ).toEqual(anonymousAuth)
@@ -236,7 +236,7 @@ describe("createEffectHandler", () => {
       trustedAuthFromHeaders(
         makeContext(undefined, {
           [TRUSTED_AUTH_HEADER]: "true",
-          "x-elaris-admin": "true"
+          "x-effect-admin": "true"
         })
       )
     ).toEqual({
@@ -247,7 +247,7 @@ describe("createEffectHandler", () => {
       trustedAuthFromHeaders(
         makeContext(undefined, {
           [TRUSTED_AUTH_HEADER]: "true",
-          "x-elaris-user-id": "trusted-user"
+          "x-effect-user-id": "trusted-user"
         })
       )
     ).toEqual({
@@ -277,15 +277,15 @@ describe("createEffectHandler", () => {
 
     const spoofed = await handler(
       makeContext(undefined, {
-        "x-elaris-user-id": "spoofed-user",
-        "x-elaris-admin": "true"
+        "x-effect-user-id": "spoofed-user",
+        "x-effect-admin": "true"
       })
     )
     const trusted = await handler(
       makeContext(undefined, {
         [TRUSTED_AUTH_HEADER]: "true",
-        "x-elaris-user-id": "trusted-user",
-        "x-elaris-admin": "true"
+        "x-effect-user-id": "trusted-user",
+        "x-effect-admin": "true"
       })
     )
 

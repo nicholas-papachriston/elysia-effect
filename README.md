@@ -108,7 +108,7 @@ Needs `@elysiajs/cron`. The package root does not load it.
 | `elysia-effect/stream`    | SSE helpers                                      |
 | `elysia-effect/context`   | `RequestContextTag`                              |
 
-Older names (`effectPlugin`, `effectGet`, `effectPost`, `effectCron`) still resolve.
+Older names are not kept as aliases.
 
 ## Development
 

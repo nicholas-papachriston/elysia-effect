@@ -67,9 +67,6 @@ export interface EffectBindings<Requirements = never> {
   readonly telemetry?: EffectTelemetryHooks
 }
 
-/** @deprecated Use `EffectBindings`. */
-export type EffectPluginBindings<Requirements = never> = EffectBindings<Requirements>
-
 export interface EffectHandlerOptions<
   _Body = Record<string, never>,
   _Query = Record<string, never>,
@@ -96,7 +93,6 @@ export interface ElysiaLikeContext {
   readonly cookie?: Record<string, { readonly value: unknown } | string | undefined>
   readonly requestAuth?: AuthContext
   readonly effect?: EffectBindings
-  readonly elysiaEffect?: EffectBindings
   readonly set: {
     status?: number | string
     headers?: Record<string, string | number>
@@ -109,9 +105,9 @@ export const anonymousAuth: AuthContext = {
 }
 
 export const authFromHeaders = (context: ElysiaLikeContext): AuthContext => {
-  const userId = context.request.headers.get("x-elaris-user-id")
-  const isAdmin = context.request.headers.get("x-elaris-admin") === "true"
-  const isEmailVerified = context.request.headers.get("x-elaris-email-verified") === "true"
+  const userId = context.request.headers.get("x-effect-user-id")
+  const isAdmin = context.request.headers.get("x-effect-admin") === "true"
+  const isEmailVerified = context.request.headers.get("x-effect-email-verified") === "true"
 
   return {
     ...(userId ? { userId } : {}),
@@ -120,10 +116,10 @@ export const authFromHeaders = (context: ElysiaLikeContext): AuthContext => {
   }
 }
 
-export const TRUSTED_AUTH_HEADER = "x-elaris-trusted-auth"
+export const TRUSTED_AUTH_HEADER = "x-effect-trusted-auth"
 
 /**
- * PRECONDITION: callers must strip all client-supplied Elaris auth headers at the
+ * PRECONDITION: callers must strip all client-supplied identity headers at the
  * public boundary and set these headers only after real session/bearer validation.
  * Without that upstream validation, this is not safer than authFromHeaders.
  */
@@ -159,7 +155,7 @@ const resolveAuth = async (
   context: ElysiaLikeContext,
   routeAuth: EffectHandlerOptions["auth"]
 ): Promise<AuthContext> => {
-  const auth = routeAuth ?? context.elysiaEffect?.auth
+  const auth = routeAuth ?? context.effect?.auth
   if (auth === undefined) {
     return anonymousAuth
   }
@@ -256,7 +252,7 @@ export const createEffectHandler =
     ) => EffectLike<ResponseBody, unknown, Requirements | RequestContextTag>
   ) =>
   async (context: ElysiaLikeContext): Promise<unknown> => {
-    const plugin = context.effect ?? context.elysiaEffect
+    const plugin = context.effect
     const mapError = options.mapError ?? plugin?.mapError ?? defaultErrorMapper
     const telemetry = options.telemetry ?? plugin?.telemetry
     const runner = options.layer

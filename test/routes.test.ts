@@ -4,17 +4,7 @@ import { Elysia } from "elysia"
 import { RequestContextTag } from "../src/context"
 import { defaultErrorMapper } from "../src/errors"
 import { openApiDetail, openApiRouteOptions } from "../src/openapi"
-import {
-  effectAll,
-  effectDelete,
-  effectGet,
-  effectHead,
-  effectOptions,
-  effectPatch,
-  effectPost,
-  effectPut,
-  effectRoute
-} from "../src/routes"
+import { all, effectDelete, get, head, options, patch, post, put, route } from "../src/routes"
 
 const Params = Schema.Struct({
   id: Schema.String
@@ -77,7 +67,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect GET route with params and query decoding", async () => {
-    const app = effectGet(
+    const app = get(
       new Elysia(),
       "/characters/:id",
       {
@@ -101,7 +91,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect POST route with body decoding", async () => {
-    const app = effectPost(
+    const app = post(
       new Elysia(),
       "/characters",
       {
@@ -122,7 +112,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect PATCH route", async () => {
-    const app = effectPatch(
+    const app = patch(
       new Elysia(),
       "/characters/:id",
       {
@@ -165,7 +155,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect HEAD route", async () => {
-    const app = effectHead(
+    const app = head(
       new Elysia(),
       "/characters/:id",
       {
@@ -184,7 +174,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect PUT route", async () => {
-    const app = effectPut(
+    const app = put(
       new Elysia(),
       "/characters/:id",
       {
@@ -206,7 +196,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect OPTIONS route", async () => {
-    const app = effectOptions(new Elysia(), "/characters", {}, () =>
+    const app = options(new Elysia(), "/characters", {}, () =>
       Effect.succeed({ allow: "GET,POST" })
     )
 
@@ -219,7 +209,7 @@ describe("effect route helpers", () => {
   })
 
   test("registers an Effect ALL route", async () => {
-    const app = effectAll(new Elysia(), "/any", {}, () => Effect.succeed({ ok: true }))
+    const app = all(new Elysia(), "/any", {}, () => Effect.succeed({ ok: true }))
 
     const response = await app.handle(new Request("http://localhost/any", { method: "POST" }))
 
@@ -227,10 +217,8 @@ describe("effect route helpers", () => {
     await expect(response.json()).resolves.toEqual({ ok: true })
   })
 
-  test("registers a route through effectRoute", async () => {
-    const app = effectRoute(new Elysia(), "post", "/routed", {}, () =>
-      Effect.succeed({ routed: true })
-    )
+  test("registers a route through route", async () => {
+    const app = route(new Elysia(), "post", "/routed", {}, () => Effect.succeed({ routed: true }))
 
     const response = await app.handle(
       new Request("http://localhost/routed", {
@@ -243,7 +231,7 @@ describe("effect route helpers", () => {
   })
 
   test("provides request context to Effect handlers", async () => {
-    const app = effectGet(
+    const app = get(
       new Elysia(),
       "/context",
       {
@@ -272,7 +260,7 @@ describe("effect route helpers", () => {
   })
 
   test("accepts OpenAPI detail helper output as route options", async () => {
-    const app = effectGet(
+    const app = get(
       new Elysia(),
       "/documented",
       {

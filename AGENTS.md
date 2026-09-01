@@ -60,41 +60,33 @@ bun test
 
 ## CI/CD
 
-Quality gates use the shared **devctl** CLI from the [`nicholas-papachriston/dev`](https://github.com/nicholas-papachriston/dev) meta-repo. **GitHub Actions push/PR CI is disabled workspace-wide** except `shotput` (native `ci.yml` / `publish.yml`). **Run gates locally before every push** — there is no GitHub safety net elsewhere.
+This repository has no GitHub Actions push/PR CI. **Run the local gates below before every push** — there is no remote safety net.
 
 ### Agent gate (required before push)
 
-```bash
-# Resolve devctl (standalone sparse clone — no submodules required):
-#   git clone --depth 1 --filter=blob:none --sparse git@github.com:nicholas-papachriston/dev.git /tmp/dev
-#   cd /tmp/dev && git sparse-checkout set cli ci-cd
-#   export DEVCTL=/tmp/dev/cli/devctl.ts
-#
-# Typical layouts:
-#   export DEVCTL="$HOME/dev/cli/devctl.ts"   # full ~/dev checkout
-#   export DEVCTL="../cli/devctl.ts"          # sibling when repo lives under ~/dev/
+Run from the repository root, in order; stop at the first failure.
 
-ROOT="$(git rev-parse --show-toplevel)"
-bun "${DEVCTL:-$HOME/dev/cli/devctl.ts}" ci list --cwd "$ROOT"
-bun "${DEVCTL:-$HOME/dev/cli/devctl.ts}" ci run check test --cwd "$ROOT"
+```bash
+cd "$(git rev-parse --show-toplevel)"
+( bun run check )  # check
+( bun run test )   # test
 ```
 
 **Stages for this repo:** `check test`
 
-Optional `.ci.yml` at the repo root overrides stage commands. Pass `--nix` when `flake.nix` exists and Nix is available. Engine docs: [`ci-cd/README.md`](https://github.com/nicholas-papachriston/dev/blob/main/ci-cd/README.md) (consumption is SSH sparse-checkout of `cli/` and `ci-cd/`; never npm).
+Each stage resolves to the command above from, in order, an explicit `.ci.yml` entry, a `Makefile` target, a `justfile` recipe, or a `package.json` script with the same name. When `flake.nix` exists and Nix is available, run the commands inside `nix develop`.
 
 ### Commit convention
 
-Every commit (agents and humans) follows the workspace convention:
-`type(scope)?: summary` per Conventional Commits with type in
+Every commit (agents and humans) follows Conventional Commits:
+`type(scope)?: summary` with type in
 `build|chore|ci|docs|feat|fix|perf|refactor|research|revert|style|test`;
 one logical change per commit; imperative lowercase summary; no trailing
 period; prefer a 50-character header and never exceed 72; blank line before
 a body that wraps at 72 columns and explains what and why. No emojis or
 `wip`/`fixup!`/`squash!` commits on shared branches. Agent-authored
 commits add an `Assisted-by: <agent> (<model>)` trailer; never credit an AI
-tool via `Co-authored-by:`. Validate before push:
-`bun "${DEVCTL:-$HOME/dev/cli/devctl.ts}" commit check --range origin/main..HEAD`.
+tool via `Co-authored-by:`.
 
 ## Documentation
 
